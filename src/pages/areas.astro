@@ -1,0 +1,141 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { listAreas, roles } from '../server/data';
+import { pool, table } from '../server/database';
+const user = Astro.locals.user!;
+const areas = await listAreas(user);
+const manageable = areas.filter((a) => a.access === 'manager');
+const users = manageable.length
+  ? (
+      await pool.query(
+        `SELECT id,name FROM ${table('users')} WHERE active ORDER BY name`,
+      )
+    ).rows
+  : [];
+const memberships = (
+  await pool.query(
+    `SELECT m.*,u.name FROM ${table('area_members')} m JOIN ${table('users')} u ON u.id=m.user_id WHERE m.area_id=ANY($1::uuid[]) ORDER BY u.name`,
+    [areas.map((a) => a.id)],
+  )
+).rows;
+---
+
+<Layout title="Áreas y equipo" active="areas">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">EL TRABAJO ES MEJOR EN EQUIPO</p>
+      <h1>Áreas y equipo</h1>
+      <p>Organiza los proyectos y decide quién puede colaborar.</p>
+    </div>
+    {user.role === 'admin' && (
+      <button class="button primary" data-open-dialog="new-area">
+        ＋ Nueva área
+      </button>
+    )}
+  </div>
+  <div class="area-grid">
+    {areas.map((a) => (
+      <section class="panel">
+        <div class="card-top">
+          <span class="project-icon color-1">◫</span>
+          <span class="badge">{roles[a.access as keyof typeof roles]}</span>
+        </div>
+        <h2>{a.name}</h2>
+        <p class="muted">
+          {a.description || 'Un espacio compartido para organizar proyectos.'}
+        </p>
+        <p>
+          {a.project_count} proyectos · {a.member_count} miembros
+        </p>
+        <div class="members-list">
+          {memberships
+            .filter((m) => m.area_id === a.id)
+            .map((m) => (
+              <div class="member-row">
+                <span>{m.name}</span>
+                <span class="badge">{roles[m.role as keyof typeof roles]}</span>
+              </div>
+            ))}
+        </div>
+        {a.access === 'manager' && (
+          <details class="membership-editor">
+            <summary>Gestionar acceso</summary>
+            <form class="form-stack" action="/api/command" method="post">
+              <input name="action" type="hidden" value="member.save" />
+              <input name="area_id" type="hidden" value={a.id} />
+              <label>
+                Persona
+                <select name="user_id" required>
+                  {users.map((u) => (
+                    <option value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Permiso
+                <select name="role">
+                  <option value="member">
+                    Miembro · crear y editar tareas
+                  </option>
+                  <option value="viewer">
+                    Lector · consultar proyectos y tareas
+                  </option>
+                  <option value="manager">
+                    Responsable · proyectos y accesos
+                  </option>
+                  <option value="remove">Retirar acceso al área</option>
+                </select>
+              </label>
+              <button class="button" type="submit">
+                Guardar acceso
+              </button>
+            </form>
+          </details>
+        )}
+      </section>
+    ))}
+  </div>
+  {!areas.length && (
+    <div class="empty">
+      <h2>Un lugar para cada equipo</h2>
+      <p>
+        {user.role === 'admin'
+          ? 'Crea tu primera área: desarrollo, operaciones, diseño…'
+          : 'Todavía no tienes acceso a ningún área.'}
+      </p>
+    </div>
+  )}
+  <div class="info-note">
+    Los permisos se aplican a todos los proyectos del área. Los administradores
+    tienen acceso completo.
+  </div>
+  {user.role === 'admin' && (
+    <dialog id="new-area">
+      <div class="dialog-heading">
+        <h2>Nueva área</h2>
+        <button class="icon-button" data-close-dialog aria-label="Cerrar">
+          ✕
+        </button>
+      </div>
+      <form class="form-stack" action="/api/command" method="post">
+        <input name="action" type="hidden" value="area.create" />
+        <label>
+          Nombre
+          <input
+            name="name"
+            required
+            maxlength="100"
+            placeholder="Ej. Desarrollo"
+          />
+        </label>
+        <label>
+          Descripción
+          <textarea name="description" rows="3" maxlength="2000" />
+        </label>
+        <button class="button primary" type="submit">
+          Crear área
+        </button>
+      </form>
+    </dialog>
+  )}
+</Layout>

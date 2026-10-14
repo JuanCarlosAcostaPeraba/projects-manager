@@ -1,0 +1,325 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import TaskFields from '../../components/TaskFields.astro';
+import {
+  projectData,
+  statuses,
+  priorities,
+  initials,
+  dateLabel,
+} from '../../server/data';
+import { canWrite, AppError } from '../../server/permissions';
+import { z } from 'zod';
+if (!z.uuid().safeParse(Astro.params.id).success)
+  return Astro.redirect('/?error=Proyecto%20no%20encontrado');
+let data;
+try {
+  data = await projectData(Astro.locals.user!, Astro.params.id!);
+} catch (error) {
+  if (error instanceof AppError)
+    return Astro.redirect(`/?error=${encodeURIComponent(error.message)}`);
+  throw error;
+}
+const { project, tasks, members } = data;
+const writable = canWrite(project.access);
+const view = Astro.url.searchParams.get('view') === 'list' ? 'list' : 'board';
+const q = (Astro.url.searchParams.get('q') || '').toLowerCase();
+const assignee = Astro.url.searchParams.get('assignee') || '';
+const visible = tasks.filter(
+  (t) =>
+    `${project.key}-${t.number} ${t.title}`.toLowerCase().includes(q) &&
+    (!assignee || t.assignee_id === assignee),
+);
+---
+
+<Layout title={project.name}>
+  <a class="back-link" href="/">
+    ← Todos los proyectos
+  </a>
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">
+        {project.area_name} <span class="separator">/</span> {project.key}
+      </p>
+      <h1>{project.name}</h1>
+      <p>
+        {project.description ||
+          'Organiza el trabajo, comparte el progreso y sigue avanzando.'}
+      </p>
+    </div>
+    {writable && (
+      <button class="button primary" data-open-dialog="new-task">
+        ＋ Nueva tarea
+      </button>
+    )}
+  </div>
+  <div class="project-meta">
+    <span class="badge">{tasks.length} tareas</span>
+    <span>☑ {tasks.filter((t) => t.status === 'done').length} completadas</span>
+    {!writable && <span class="badge">Acceso de lectura</span>}
+  </div>
+  <div class="board-toolbar">
+    <div class="tabs">
+      <a
+        class:list={['tab', { active: view === 'board' }]}
+        href={`?view=board&q=${encodeURIComponent(q)}&assignee=${assignee}`}
+      >
+        ▦ Tablero
+      </a>
+      <a
+        class:list={['tab', { active: view === 'list' }]}
+        href={`?view=list&q=${encodeURIComponent(q)}&assignee=${assignee}`}
+      >
+        ☰ Lista
+      </a>
+    </div>
+    <form class="filters" method="get">
+      <input type="hidden" name="view" value={view} />
+      <input
+        type="search"
+        name="q"
+        value={q}
+        placeholder="Buscar tareas…"
+        aria-label="Buscar tareas"
+      />
+      <select name="assignee" aria-label="Filtrar por responsable">
+        <option value="">Todos los responsables</option>
+        {members.map((m) => (
+          <option value={m.id} selected={m.id === assignee}>
+            {m.name}
+          </option>
+        ))}
+      </select>
+      <button class="button" type="submit">
+        Filtrar
+      </button>
+    </form>
+  </div>
+  {view === 'board' ? (
+    <div class="board">
+      {Object.entries(statuses).map(([status, label]) => (
+        <section class={`column column-${status}`} data-status={status}>
+          <div class="column-heading">
+            <h2>
+              <span class={`status-dot ${status}`}></span>
+              {label}
+            </h2>
+            <span class="column-count">
+              {visible.filter((t) => t.status === status).length}
+            </span>
+          </div>
+          <div class="column-cards">
+            {visible
+              .filter((t) => t.status === status)
+              .map((t) => (
+                <article
+                  class="task-card"
+                  draggable={writable}
+                  data-task-id={t.id}
+                  data-version={t.version}
+                >
+                  <div class="task-card-top">
+                    <span class="mono">
+                      {project.key}-{t.number}
+                    </span>
+                    <span class={`priority ${t.priority}`}>
+                      {priorities[t.priority as keyof typeof priorities]}
+                    </span>
+                  </div>
+                  <a class="task-title" href={`/tasks/${t.id}`}>
+                    {t.title}
+                  </a>
+                  <div class="task-footer">
+                    <span class="due-date">
+                      {t.due_date
+                        ? `◷ ${dateLabel(t.due_date)}`
+                        : 'Sin fecha límite'}
+                    </span>
+                    {t.assignee_name ? (
+                      <span class="avatar small" title={t.assignee_name}>
+                        {initials(t.assignee_name)}
+                      </span>
+                    ) : (
+                      <span class="unassigned" title="Sin asignar">
+                        —
+                      </span>
+                    )}
+                  </div>
+                  {writable && (
+                    <form
+                      class="status-form"
+                      method="post"
+                      action="/api/command"
+                    >
+                      <input type="hidden" name="action" value="task.status" />
+                      <input type="hidden" name="task_id" value={t.id} />
+                      <input type="hidden" name="version" value={t.version} />
+                      <select name="status" aria-label={`Estado de ${t.title}`}>
+                        {Object.entries(statuses).map(([value, text]) => (
+                          <option value={value} selected={value === status}>
+                            {text}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        title="Guardar estado"
+                        aria-label={`Guardar estado de ${t.title}`}
+                      >
+                        →
+                      </button>
+                    </form>
+                  )}
+                </article>
+              ))}
+            {!visible.some((t) => t.status === status) && (
+              <div class="column-empty">Sin tareas por aquí</div>
+            )}
+          </div>
+        </section>
+      ))}
+    </div>
+  ) : (
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Tarea</th>
+            <th>Estado</th>
+            <th>Prioridad</th>
+            <th>Responsable</th>
+            <th>Fecha límite</th>
+          </tr>
+        </thead>
+        <tbody>
+          {visible.map((t) => (
+            <tr>
+              <td>
+                <a href={`/tasks/${t.id}`}>
+                  <span class="mono">
+                    {project.key}-{t.number}
+                  </span>{' '}
+                  {t.title}
+                </a>
+              </td>
+              <td>
+                <span class={`status-dot ${t.status}`}></span>
+                {statuses[t.status as keyof typeof statuses]}
+              </td>
+              <td>
+                <span class={`priority ${t.priority}`}>
+                  {priorities[t.priority as keyof typeof priorities]}
+                </span>
+              </td>
+              <td>{t.assignee_name || 'Sin asignar'}</td>
+              <td>{dateLabel(t.due_date)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {!visible.length && <p class="empty">No hay tareas para mostrar.</p>}
+    </div>
+  )}
+  {!tasks.length && (
+    <p class="muted">
+      Crea la primera tarea para empezar a trabajar en este proyecto.
+    </p>
+  )}
+  <p class="muted" id="board-feedback" role="status">
+    {writable && view === 'board'
+      ? 'Arrastra una tarea a otra columna o cambia su estado desde la tarjeta.'
+      : ''}
+  </p>
+  <script>
+    let dragged: HTMLElement | null = null;
+    let saving = false;
+    const feedback = document.getElementById('board-feedback');
+    document
+      .querySelectorAll<HTMLElement>('.task-card[draggable="true"]')
+      .forEach((card) => {
+        card.addEventListener('dragstart', (event) => {
+          if (saving) {
+            event.preventDefault();
+            return;
+          }
+          dragged = card;
+          event.dataTransfer?.setData('text/plain', card.dataset.taskId!);
+          if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+          card.classList.add('dragging');
+        });
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+          document
+            .querySelectorAll('.drop-target')
+            .forEach((column) => column.classList.remove('drop-target'));
+          dragged = null;
+        });
+      });
+    document.querySelectorAll<HTMLElement>('.column').forEach((column) => {
+      column.addEventListener('dragover', (event) => {
+        if (!dragged || saving) return;
+        event.preventDefault();
+        column.classList.add('drop-target');
+      });
+      column.addEventListener('dragleave', (event) => {
+        if (!column.contains(event.relatedTarget as Node))
+          column.classList.remove('drop-target');
+      });
+      column.addEventListener('drop', async (event) => {
+        event.preventDefault();
+        column.classList.remove('drop-target');
+        const card = dragged;
+        if (!card || saving || card.closest('.column') === column) return;
+        saving = true;
+        if (feedback) feedback.textContent = 'Guardando el nuevo estado…';
+        try {
+          const response = await fetch('/api/command', {
+            method: 'POST',
+            headers: { accept: 'application/json' },
+            body: new URLSearchParams({
+              action: 'task.status',
+              task_id: card.dataset.taskId!,
+              version: card.dataset.version!,
+              status: column.dataset.status!,
+            }),
+          });
+          if (
+            !response.headers.get('content-type')?.includes('application/json')
+          )
+            throw new Error('Tu sesión ha caducado. Vuelve a iniciar sesión.');
+          const result = await response.json();
+          if (!response.ok)
+            throw new Error(result.error || 'No se pudo cambiar el estado.');
+          window.location.reload();
+        } catch (error) {
+          if (feedback)
+            feedback.textContent =
+              error instanceof Error
+                ? error.message
+                : 'No se pudo guardar el estado.';
+          saving = false;
+        }
+      });
+    });
+  </script>
+  {writable && (
+    <dialog id="new-task">
+      <div class="dialog-heading">
+        <h2>
+          Nueva tarea <span class="mono">{project.key}</span>
+        </h2>
+        <button class="icon-button" data-close-dialog aria-label="Cerrar">
+          ✕
+        </button>
+      </div>
+      <form class="form-stack" action="/api/command" method="post">
+        <input type="hidden" name="action" value="task.create" />
+        <input type="hidden" name="project_id" value={project.id} />
+        <TaskFields members={members} />
+        <button class="button primary" type="submit">
+          Crear tarea
+        </button>
+      </form>
+    </dialog>
+  )}
+</Layout>

@@ -1,46 +1,39 @@
-# Astro Starter Kit: Basics
+# Projects Manager
+
+Primer MVP de un gestor de proyectos y tareas inspirado en GitHub Projects, con Astro, TypeScript y PostgreSQL.
+
+## Arranque local
+
+Requisitos: Node.js 22.12 o posterior, pnpm y acceso a PostgreSQL. Configurar `.env` a partir de `.env.example`; las credenciales se leen únicamente en el servidor. El esquema de desarrollo es `projects_manager`.
 
 ```sh
-pnpm create astro@latest -- --template basics
+pnpm install
+pnpm db:migrate
+pnpm dev --background
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Abrir [http://localhost:4321](http://localhost:4321). El primer acceso permite crear el administrador y, opcionalmente, cargar seis tareas de ejemplo. Después: crear áreas, usuarios, permisos y proyectos.
 
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-│   └── favicon.svg
-├── src
-│   ├── assets
-│   │   └── astro.svg
-│   ├── components
-│   │   └── Welcome.astro
-│   ├── layouts
-│   │   └── Layout.astro
-│   └── pages
-│       └── index.astro
-└── package.json
+```sh
+pnpm astro dev status
+pnpm astro dev logs
+pnpm astro dev stop
 ```
 
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
+Si ya hay un servidor iniciado en una terminal, sus registros estarán en esa terminal.
 
-## 🧞 Commands
+## Comprobaciones
 
-All commands are run from the root of the project, from a terminal:
+```sh
+pnpm check
+pnpm test
+pnpm build
+```
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `pnpm install`             | Installs dependencies                            |
-| `pnpm dev`             | Starts local dev server at `localhost:4321`      |
-| `pnpm build`           | Build your production site to `./dist/`          |
-| `pnpm preview`         | Preview your build locally, before deploying     |
-| `pnpm astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `pnpm astro -- --help` | Get help using the Astro CLI                     |
+Las pruebas usan la conexión del `.env`, crean un esquema temporal único y lo eliminan al terminar; necesitan permiso para crear esquemas. No modifican los datos de `projects_manager`.
 
-## 👀 Want to learn more?
+Para ejecutar la versión compilada, usar `pnpm start`. `HOST` y `PORT` permiten definir la dirección del servidor. Cuando se despliegue, `APP_ORIGIN` deberá contener el dominio HTTPS antes de compilar. En un servidor con variables inyectadas y sin archivo `.env`, ejecutar directamente `node dist/server/entry.mjs`.
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+## Alcance y migración
+
+[Detalle del MVP, permisos y traslado a producción](docs/mvp.md). La aplicación está preparada para pruebas locales; la publicación y el traslado de datos a producción quedan para una fase posterior.

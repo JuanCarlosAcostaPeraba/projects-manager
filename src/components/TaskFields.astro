@@ -1,0 +1,70 @@
+---
+import { statuses, priorities } from '../server/data';
+interface Props {
+  task?: any;
+  members: any[];
+}
+const { task = {}, members } = Astro.props;
+const dueDate = task.due_date
+  ? new Date(task.due_date).toISOString().slice(0, 10)
+  : '';
+---
+
+<label>
+  Título
+  <input
+    name="title"
+    value={task.title || ''}
+    required
+    maxlength="200"
+    placeholder="¿Qué hay que hacer?"
+  />
+</label>
+<label>
+  Descripción
+  <textarea
+    name="description"
+    rows="5"
+    maxlength="10000"
+    placeholder="Añade contexto, requisitos o criterios de aceptación…"
+  >{task.description||''}</textarea>
+</label>
+<div class="form-row">
+  <label>
+    Estado
+    <select name="status">
+      {Object.entries(statuses).map(([value, label]) => (
+        <option value={value} selected={value === (task.status || 'backlog')}>
+          {label}
+        </option>
+      ))}
+    </select>
+  </label>
+  <label>
+    Prioridad
+    <select name="priority">
+      {Object.entries(priorities).map(([value, label]) => (
+        <option value={value} selected={value === (task.priority || 'medium')}>
+          {label}
+        </option>
+      ))}
+    </select>
+  </label>
+</div>
+<div class="form-row">
+  <label>
+    Responsable
+    <select name="assignee_id">
+      <option value="">Sin asignar</option>
+      {members.map((m) => (
+        <option value={m.id} selected={m.id === task.assignee_id}>
+          {m.name}
+        </option>
+      ))}
+    </select>
+  </label>
+  <label>
+    Fecha límite
+    <input type="date" name="due_date" value={dueDate} />
+  </label>
+</div>

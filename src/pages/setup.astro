@@ -1,0 +1,56 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { pool, table } from '../server/database';
+if ((await pool.query(`SELECT 1 FROM ${table('users')} LIMIT 1`)).rowCount)
+  return Astro.redirect('/login');
+---
+
+<Layout title="Preparar el espacio">
+  <div class="auth-card">
+    <div class="brand">
+      <span class="brand-mark">▥</span>Projects Manager
+    </div>
+    <p class="eyebrow">EL PRIMER PASO</p>
+    <h1>Tu equipo empieza aquí.</h1>
+    <p>Crea la cuenta administradora para preparar el espacio de trabajo.</p>
+    <form method="post" action="/api/auth" class="form-stack">
+      <input type="hidden" name="action" value="setup" />
+      <label>
+        Tu nombre
+        <input name="name" autocomplete="name" required maxlength="100" />
+      </label>
+      <label>
+        Correo electrónico
+        <input
+          name="email"
+          type="email"
+          autocomplete="username"
+          required
+          maxlength="254"
+        />
+      </label>
+      <label>
+        Contraseña
+        <input
+          name="password"
+          type="password"
+          autocomplete="new-password"
+          required
+          minlength="12"
+          maxlength="128"
+        />
+        <small>Al menos 12 caracteres.</small>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" name="demo" checked /> Incluir un proyecto con 6
+        tareas de ejemplo
+      </label>
+      <button class="button primary" type="submit">
+        Crear mi espacio →
+      </button>
+    </form>
+    <small class="auth-note">
+      La configuración inicial se realiza una sola vez.
+    </small>
+  </div>
+</Layout>

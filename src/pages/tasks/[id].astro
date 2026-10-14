@@ -1,0 +1,137 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import TaskFields from '../../components/TaskFields.astro';
+import {
+  taskData,
+  statuses,
+  priorities,
+  initials,
+  dateLabel,
+} from '../../server/data';
+import { canWrite, AppError } from '../../server/permissions';
+import { z } from 'zod';
+if (!z.uuid().safeParse(Astro.params.id).success)
+  return Astro.redirect('/?error=Tarea%20no%20encontrada');
+let data;
+try {
+  data = await taskData(Astro.locals.user!, Astro.params.id!);
+} catch (error) {
+  if (error instanceof AppError)
+    return Astro.redirect(`/?error=${encodeURIComponent(error.message)}`);
+  throw error;
+}
+const { task, project, comments, activity, members } = data;
+const writable = canWrite(project.access);
+---
+
+<Layout title={`${project.key}-${task.number}`}>
+  <a class="back-link" href={`/projects/${project.id}`}>
+    ← {project.name}
+  </a>
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">
+        {project.area_name} / {project.key}-{task.number}
+      </p>
+      <h1>{task.title}</h1>
+    </div>
+    <span class={`priority ${task.priority}`}>
+      {priorities[task.priority as keyof typeof priorities]}
+    </span>
+  </div>
+  <div class="detail-grid">
+    <section>
+      <div class="panel">
+        <h2>Detalles de la tarea</h2>
+        {writable ? (
+          <form class="form-stack" action="/api/command" method="post">
+            <input type="hidden" name="action" value="task.update" />
+            <input type="hidden" name="task_id" value={task.id} />
+            <input type="hidden" name="version" value={task.version} />
+            <TaskFields task={task} members={members} />
+            <button class="button primary" type="submit">
+              Guardar cambios
+            </button>
+          </form>
+        ) : (
+          <div>
+            <p class="preserve">{task.description || 'Sin descripción.'}</p>
+            <dl class="read-details">
+              <dt>Estado</dt>
+              <dd>{statuses[task.status as keyof typeof statuses]}</dd>
+              <dt>Responsable</dt>
+              <dd>
+                {members.find((m) => m.id === task.assignee_id)?.name ||
+                  'Sin asignar'}
+              </dd>
+              <dt>Fecha límite</dt>
+              <dd>{dateLabel(task.due_date)}</dd>
+            </dl>
+          </div>
+        )}
+      </div>
+      <div class="panel">
+        <h2>
+          Conversación <span class="count">{comments.length}</span>
+        </h2>
+        {comments.map((c) => (
+          <article class="comment">
+            <span class="avatar small">{initials(c.author_name)}</span>
+            <div>
+              <strong>{c.author_name}</strong>
+              <small> · {dateLabel(c.created_at)}</small>
+              <p class="preserve">{c.body}</p>
+            </div>
+          </article>
+        ))}
+        {!comments.length && (
+          <p class="muted">
+            Comparte una actualización o añade contexto para tu equipo.
+          </p>
+        )}
+        {writable && (
+          <form class="form-stack" method="post" action="/api/command">
+            <input type="hidden" name="action" value="comment.create" />
+            <input type="hidden" name="task_id" value={task.id} />
+            <label class="sr-only" for="comment-body">
+              Tu comentario
+            </label>
+            <textarea
+              id="comment-body"
+              name="body"
+              required
+              maxlength="5000"
+              rows="3"
+              placeholder="Escribe un comentario…"
+            />
+            <button type="submit" class="button">
+              Publicar comentario
+            </button>
+          </form>
+        )}
+      </div>
+    </section>
+    <aside class="panel activity-panel">
+      <p class="eyebrow">SEGUIMIENTO</p>
+      <h2>Actividad reciente</h2>
+      {activity.map((a) => (
+        <div class="activity-entry">
+          <span class="activity-dot"></span>
+          <div>
+            <strong>{a.actor_name}</strong>
+            <p>{a.description}</p>
+            <small>{dateLabel(a.created_at)}</small>
+          </div>
+        </div>
+      ))}
+      {!activity.length && (
+        <p class="muted">Todavía no hay actividad registrada.</p>
+      )}
+      <div class="detail-note">
+        Creada el {dateLabel(task.created_at)}
+        <br />
+        Actualizada el {dateLabel(task.updated_at)}
+      </div>
+    </aside>
+  </div>
+</Layout>

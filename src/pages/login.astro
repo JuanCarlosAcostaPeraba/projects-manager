@@ -1,0 +1,52 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { pool, table } from '../server/database';
+if (Astro.locals.user) return Astro.redirect('/');
+if (!(await pool.query(`SELECT 1 FROM ${table('users')} LIMIT 1`)).rowCount)
+  return Astro.redirect('/setup');
+---
+
+<Layout title="Iniciar sesión">
+  <div class="auth-card">
+    <a class="brand" href="/">
+      <span class="brand-mark">▥</span>Projects Manager
+    </a>
+    <p class="eyebrow">BIENVENIDO A TU ESPACIO</p>
+    <h1>Vamos a avanzar.</h1>
+    <p>Entra para organizar el trabajo con tu equipo.</p>
+    {Astro.url.searchParams.has('changed') && (
+      <p class="success" role="status">
+        Contraseña actualizada. Vuelve a iniciar sesión.
+      </p>
+    )}
+    <form method="post" action="/api/auth" class="form-stack">
+      <input type="hidden" name="action" value="login" />
+      <label>
+        Correo electrónico
+        <input
+          type="email"
+          name="email"
+          autocomplete="username"
+          required
+          maxlength="254"
+        />
+      </label>
+      <label>
+        Contraseña
+        <input
+          type="password"
+          name="password"
+          autocomplete="current-password"
+          required
+          maxlength="128"
+        />
+      </label>
+      <button type="submit" class="button primary">
+        Entrar al espacio →
+      </button>
+    </form>
+    <small class="auth-note">
+      ¿Necesitas acceso? Contacta con el administrador de tu equipo.
+    </small>
+  </div>
+</Layout>

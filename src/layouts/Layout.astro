@@ -1,26 +1,157 @@
 ---
-import "@/styles/global.css";
+import '@/styles/global.css';
+import { initials } from '../server/data';
+interface Props {
+  title?: string;
+  active?: string;
+}
+const { title = 'Proyectos', active = 'projects' } = Astro.props;
+const user = Astro.locals.user;
+const error = Astro.url.searchParams.get('error');
 ---
 
 <!doctype html>
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" />
-    <title>Astro Basics</title>
+    <meta
+      name="description"
+      content="Organiza tus proyectos y tareas con tu equipo."
+    />
+    <title>{title} · Projects Manager</title>
   </head>
   <body>
-    <slot />
+    {user ? (
+      <div class="app-shell">
+        <aside class="sidebar">
+          <a class="brand" href="/">
+            <span class="brand-mark">▥</span>
+            <span>
+              Projects<span class="brand-sub">MANAGER</span>
+            </span>
+          </a>
+          <div class="workspace">
+            <span class="workspace-icon">E</span>
+            <div>
+              Espacio de trabajo<small>Tu equipo, conectado</small>
+            </div>
+          </div>
+          <p class="nav-label">ORGANIZACIÓN</p>
+          <nav aria-label="Navegación principal">
+            <a
+              class:list={['nav-item', { selected: active === 'projects' }]}
+              href="/"
+            >
+              <span aria-hidden="true">▦</span> Proyectos
+            </a>
+            <a
+              class:list={['nav-item', { selected: active === 'tasks' }]}
+              href="/my-tasks"
+            >
+              <span aria-hidden="true">☑</span> Mis tareas
+            </a>
+            <a
+              class:list={['nav-item', { selected: active === 'areas' }]}
+              href="/areas"
+            >
+              <span aria-hidden="true">◫</span> Áreas y equipo
+            </a>
+            {user.role === 'admin' && (
+              <a
+                class:list={['nav-item', { selected: active === 'admin' }]}
+                href="/admin"
+              >
+                <span aria-hidden="true">⚙</span> Administración
+              </a>
+            )}
+            <a
+              class:list={[
+                'nav-item',
+                'mobile-account',
+                { selected: active === 'account' },
+              ]}
+              href="/account"
+            >
+              Mi perfil
+            </a>
+          </nav>
+          <div class="sidebar-bottom">
+            <div class="environment">
+              <span class="live-dot"></span> Entorno de pruebas
+            </div>
+            <a class="profile" href="/account">
+              <span class="avatar">{initials(user.name)}</span>
+              <div>
+                {user.name}
+                <small>
+                  {user.role === 'admin'
+                    ? 'Administrador'
+                    : 'Miembro del equipo'}
+                </small>
+              </div>
+            </a>
+            <form action="/api/auth" method="post">
+              <input type="hidden" name="action" value="logout" />
+              <button class="logout" type="submit">
+                Cerrar sesión ↗
+              </button>
+            </form>
+          </div>
+        </aside>
+        <div class="main-shell">
+          <header class="topbar">
+            <span>
+              Espacio de trabajo <span class="separator">/</span>{' '}
+              <strong>{title}</strong>
+            </span>
+            <span class="topbar-note">Un lugar para avanzar juntos</span>
+          </header>
+          <main id="main-content">
+            {error && (
+              <div class="alert" role="alert">
+                {error}
+              </div>
+            )}
+            <slot />
+          </main>
+        </div>
+      </div>
+    ) : (
+      <main class="auth-shell">
+        {error && (
+          <div class="alert" role="alert">
+            {error}
+          </div>
+        )}
+        <slot />
+      </main>
+    )}
+    <script>
+      document
+        .querySelectorAll<HTMLButtonElement>('[data-open-dialog]')
+        .forEach((button) =>
+          button.addEventListener('click', () => {
+            (
+              document.getElementById(
+                button.dataset.openDialog!,
+              ) as HTMLDialogElement
+            )?.showModal();
+          }),
+        );
+      document
+        .querySelectorAll<HTMLButtonElement>('[data-close-dialog]')
+        .forEach((button) =>
+          button.addEventListener('click', () =>
+            button.closest('dialog')?.close(),
+          ),
+        );
+      document.querySelectorAll<HTMLDialogElement>('dialog').forEach((dialog) =>
+        dialog.addEventListener('click', (event) => {
+          if (event.target === dialog) dialog.close();
+        }),
+      );
+    </script>
   </body>
 </html>
-
-<style>
-  html,
-  body {
-    margin: 0;
-    width: 100%;
-    height: 100%;
-  }
-</style>

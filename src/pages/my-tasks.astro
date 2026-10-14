@@ -1,0 +1,66 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { myTasks, statuses, priorities, dateLabel } from '../server/data';
+const tasks = await myTasks(Astro.locals.user!);
+---
+
+<Layout title="Mis tareas" active="tasks">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">TU PRÓXIMO PASO</p>
+      <h1>
+        Mis tareas <span class="count">{tasks.length}</span>
+      </h1>
+      <p>Todo lo que tienes asignado, en una sola vista.</p>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Tarea</th>
+          <th>Proyecto</th>
+          <th>Estado</th>
+          <th>Prioridad</th>
+          <th>Fecha límite</th>
+        </tr>
+      </thead>
+      <tbody>
+        {tasks.map((t) => (
+          <tr>
+            <td>
+              <a href={`/tasks/${t.id}`}>
+                <span class="mono">
+                  {t.key}-{t.number}
+                </span>{' '}
+                {t.title}
+              </a>
+            </td>
+            <td>
+              <a href={`/projects/${t.project_id}`}>{t.project_name}</a>
+            </td>
+            <td>
+              <span class={`status-dot ${t.status}`}></span>
+              {statuses[t.status as keyof typeof statuses]}
+            </td>
+            <td>
+              <span class={`priority ${t.priority}`}>
+                {priorities[t.priority as keyof typeof priorities]}
+              </span>
+            </td>
+            <td>{dateLabel(t.due_date)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    {!tasks.length && (
+      <div class="empty">
+        <h2>Todo despejado</h2>
+        <p>Las tareas que te asignen aparecerán aquí.</p>
+        <a class="button" href="/">
+          Explorar proyectos
+        </a>
+      </div>
+    )}
+  </div>
+</Layout>

@@ -1,11 +1,205 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
-
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+import { listProjects, listAreas } from '../server/data';
+const user = Astro.locals.user!;
+const projects = await listProjects(user);
+const areas = await listAreas(user);
+const manageable = areas.filter((a) => a.access === 'manager');
+const total = projects.reduce((sum, p) => sum + p.task_count, 0);
+const done = projects.reduce((sum, p) => sum + p.done_count, 0);
 ---
 
-<Layout>
-	<Welcome />
+<Layout title="Proyectos">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">TODO EMPIEZA CON UN PLAN</p>
+      <h1>
+        Tus proyectos<span class="count">{projects.length}</span>
+      </h1>
+      <p>Ideas, personas y tareas. Todo en el mismo lugar.</p>
+    </div>
+    {manageable.length > 0 && (
+      <button class="button primary" data-open-dialog="new-project">
+        ＋ Nuevo proyecto
+      </button>
+    )}
+  </div>
+  <div class="stats">
+    <div>
+      <span>Proyectos activos</span>
+      <strong>
+        {projects.length}
+        <small>en marcha</small>
+      </strong>
+    </div>
+    <div>
+      <span>Tareas del equipo</span>
+      <strong>
+        {total}
+        <small>en tus proyectos</small>
+      </strong>
+    </div>
+    <div>
+      <span>Tareas completadas</span>
+      <strong>
+        {done}
+        <small>{total ? Math.round((done / total) * 100) : 0}% del total</small>
+      </strong>
+    </div>
+    <div>
+      <span>Áreas de trabajo</span>
+      <strong>
+        {areas.length}
+        <small>conectadas</small>
+      </strong>
+    </div>
+  </div>
+  <div class="section-bar">
+    <h2>Todos los proyectos</h2>
+    <label class="search">
+      <span aria-hidden="true">⌕</span>
+      <input
+        id="project-search"
+        type="search"
+        placeholder="Buscar un proyecto…"
+        aria-label="Buscar proyectos"
+      />
+    </label>
+  </div>
+  <div class="project-grid">
+    {projects.map((p, index) => (
+      <a
+        href={`/projects/${p.id}`}
+        class="project-card"
+        data-search={`${p.name} ${p.key} ${p.area_name}`.toLowerCase()}
+      >
+        <div class="card-top">
+          <span class:list={['project-icon', `color-${index % 4}`]}>
+            {p.key.slice(0, 2)}
+          </span>
+          <span class="badge">{p.area_name}</span>
+        </div>
+        <h3>{p.name}</h3>
+        <p class="card-description">
+          {p.description ||
+            'Un nuevo espacio para organizar el trabajo de tu equipo.'}
+        </p>
+        <div class="progress-label">
+          <span>Progreso</span>
+          <strong>
+            {p.task_count ? Math.round((p.done_count / p.task_count) * 100) : 0}
+            %
+          </strong>
+        </div>
+        <progress
+          max={p.task_count || 1}
+          value={p.done_count}
+          aria-label={`Progreso de ${p.name}`}
+        ></progress>
+        <div class="card-footer">
+          <span>
+            ☑ {p.done_count} de {p.task_count} tareas
+          </span>
+          <span class="mono">{p.key} ↗</span>
+        </div>
+      </a>
+    ))}
+  </div>
+  {!projects.length && (
+    <div class="empty">
+      <span class="empty-icon">▦</span>
+      <h2>Un espacio para tu próximo proyecto</h2>
+      <p>
+        {manageable.length
+          ? 'Crea un proyecto y empieza a convertir ideas en tareas.'
+          : user.role === 'admin'
+            ? 'Crea primero un área para organizar tu equipo.'
+            : 'Pide a un responsable que te añada a un área para empezar.'}
+      </p>
+      {user.role === 'admin' && !areas.length && (
+        <a class="button primary" href="/areas">
+          Crear un área
+        </a>
+      )}
+    </div>
+  )}
+  <p id="no-results" class="empty" hidden>
+    No hay proyectos que coincidan con tu búsqueda.
+  </p>
+  {manageable.length > 0 && (
+    <dialog id="new-project">
+      <div class="dialog-heading">
+        <h2>Nuevo proyecto</h2>
+        <button
+          type="button"
+          class="icon-button"
+          data-close-dialog
+          aria-label="Cerrar"
+        >
+          ✕
+        </button>
+      </div>
+      <form method="post" action="/api/command" class="form-stack">
+        <input type="hidden" name="action" value="project.create" />
+        <label>
+          Nombre del proyecto
+          <input
+            name="name"
+            required
+            maxlength="120"
+            placeholder="Ej. Portal del equipo"
+          />
+        </label>
+        <div class="form-row">
+          <label>
+            Clave
+            <input
+              name="key"
+              required
+              minlength="2"
+              maxlength="10"
+              pattern="[A-Za-z][A-Za-z0-9]{1,9}"
+              placeholder="PORTAL"
+            />
+            <small>Para identificar tareas: PORTAL-1</small>
+          </label>
+          <label>
+            Área
+            <select name="area_id" required>
+              {manageable.map((a) => (
+                <option value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <label>
+          Descripción
+          <textarea
+            name="description"
+            maxlength="5000"
+            rows="3"
+            placeholder="¿Qué queremos conseguir?"
+          />
+        </label>
+        <button class="button primary" type="submit">
+          Crear proyecto
+        </button>
+      </form>
+    </dialog>
+  )}
+  <script>
+    document
+      .getElementById('project-search')
+      ?.addEventListener('input', (event) => {
+        const query = (event.target as HTMLInputElement).value.toLowerCase();
+        let count = 0;
+        document
+          .querySelectorAll<HTMLElement>('[data-search]')
+          .forEach((card) => {
+            card.hidden = !card.dataset.search!.includes(query);
+            if (!card.hidden) count++;
+          });
+        document.getElementById('no-results')!.hidden = count !== 0 || !query;
+      });
+  </script>
 </Layout>

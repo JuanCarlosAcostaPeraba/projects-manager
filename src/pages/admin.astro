@@ -1,0 +1,110 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { pool, table } from '../server/database';
+if (Astro.locals.user!.role !== 'admin')
+  return Astro.redirect('/?error=Acceso%20restringido');
+const users = (
+  await pool.query(
+    `SELECT id,name,email,role,active FROM ${table('users')} ORDER BY created_at`,
+  )
+).rows;
+---
+
+<Layout title="Administración" active="admin">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">PERSONAS Y ACCESOS</p>
+      <h1>Administración</h1>
+      <p>Da acceso a tu equipo y asigna sus permisos por área.</p>
+    </div>
+    <button class="button primary" data-open-dialog="new-user">
+      ＋ Nuevo usuario
+    </button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Persona</th>
+          <th>Correo</th>
+          <th>Rol global</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {users.map((u) => (
+          <tr>
+            <td>
+              <strong>{u.name}</strong>
+            </td>
+            <td>{u.email}</td>
+            <td>
+              <span class="badge">
+                {u.role === 'admin' ? 'Administrador' : 'Miembro'}
+              </span>
+            </td>
+            <td>
+              <span class="live-dot"></span>
+              {u.active ? 'Activo' : 'Inactivo'}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <div class="info-note">
+    Después de crear un usuario, asígnale acceso en{' '}
+    <a href="/areas">Áreas y equipo</a>. Cada persona puede cambiar su
+    contraseña desde su perfil.
+  </div>
+  <dialog id="new-user">
+    <div class="dialog-heading">
+      <h2>Nuevo usuario</h2>
+      <button class="icon-button" data-close-dialog aria-label="Cerrar">
+        ✕
+      </button>
+    </div>
+    <form class="form-stack" action="/api/command" method="post">
+      <input type="hidden" name="action" value="user.create" />
+      <label>
+        Nombre
+        <input name="name" required maxlength="100" autocomplete="off" />
+      </label>
+      <label>
+        Correo
+        <input
+          type="email"
+          name="email"
+          required
+          maxlength="254"
+          autocomplete="off"
+        />
+      </label>
+      <label>
+        Contraseña inicial
+        <input
+          type="password"
+          name="password"
+          required
+          minlength="12"
+          maxlength="128"
+          autocomplete="new-password"
+        />
+        <small>
+          Al menos 12 caracteres. Compártela con la persona por un canal
+          privado.
+        </small>
+      </label>
+      <label>
+        Rol global
+        <select name="role">
+          <option value="member">Miembro · acceso según sus áreas</option>
+          <option value="admin">Administrador · acceso completo</option>
+        </select>
+      </label>
+      <button class="button primary" type="submit">
+        Crear usuario
+      </button>
+    </form>
+  </dialog>
+</Layout>
