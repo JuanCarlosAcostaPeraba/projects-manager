@@ -1,0 +1,198 @@
+---
+import { z } from 'zod';
+import {
+  calendarWindow,
+  taskPlacement,
+  todayDate,
+  type PlanningTask,
+  type Zoom,
+} from '../server/gantt';
+import { statuses, dateLabel } from '../server/data';
+import Icon from './Icon.astro';
+interface Props {
+  project: any;
+  tasks: PlanningTask[];
+}
+const { project, tasks } = Astro.props;
+const zoom: Zoom = ['days', 'weeks', 'months'].includes(
+  Astro.url.searchParams.get('zoom') || '',
+)
+  ? (Astro.url.searchParams.get('zoom') as Zoom)
+  : 'weeks';
+const requested = Astro.url.searchParams.get('at') || '';
+const at =
+  z.iso.date().safeParse(requested).success &&
+  requested >= '1900-01-01' &&
+  requested <= '2200-12-31'
+    ? requested
+    : undefined;
+const range = calendarWindow(tasks, zoom, at);
+const today = todayDate();
+const planned = tasks
+  .filter((t) => t.due_date)
+  .sort(
+    (a, b) =>
+      (a.start_date || a.due_date!).localeCompare(
+        b.start_date || b.due_date!,
+      ) || a.number - b.number,
+  );
+const unscheduled = tasks.filter((t) => !t.due_date);
+function link(params: Record<string, string>) {
+  const search = new URLSearchParams(Astro.url.search);
+  search.set('view', 'gantt');
+  for (const [key, value] of Object.entries(params)) search.set(key, value);
+  return '?' + search.toString();
+}
+const todayIndex = (Date.parse(today) - Date.parse(range.start)) / 86400000;
+---
+
+<section class="gantt-panel" aria-label="Diagrama de Gantt">
+  <div class="gantt-toolbar">
+    <div class="action-row">
+      <a
+        class="button compact"
+        href={link({ at: range.previous })}
+        aria-label="Periodo anterior"
+      >
+        ←
+      </a>
+      <a class="button compact" href={link({ at: today })}>
+        Hoy
+      </a>
+      <a
+        class="button compact"
+        href={link({ at: range.next })}
+        aria-label="Periodo siguiente"
+      >
+        →
+      </a>
+      <strong>
+        {dateLabel(range.start)} {range.start.slice(0, 4)} —{' '}
+        {dateLabel(range.end)} {range.end.slice(0, 4)}
+      </strong>
+    </div>
+    <div class="gantt-zoom" aria-label="Escala del calendario">
+      {(
+        [
+          ['days', 'Días'],
+          ['weeks', 'Semanas'],
+          ['months', 'Meses'],
+        ] as const
+      ).map(([value, label]) => (
+        <a
+          class:list={['button compact', { selected: zoom === value }]}
+          href={link({ zoom: value, at: range.start })}
+          aria-current={zoom === value ? 'true' : undefined}
+        >
+          {label}
+        </a>
+      ))}
+    </div>
+  </div>
+  <div class="gantt-legend">
+    <span>
+      <i class="legend-bar"></i> Inicio y fecha límite
+    </span>
+    <span>
+      <i class="legend-milestone"></i> Solo fecha límite
+    </span>
+    <span>
+      <i class="legend-today"></i> Hoy
+    </span>
+  </div>
+  {planned.length > 0 ? (
+    <div class="gantt-scroll">
+      <div
+        class={`gantt-grid zoom-${zoom}`}
+        style={`--gantt-days:${range.days};--gantt-min-width:${range.days * (zoom === 'days' ? 26 : zoom === 'weeks' ? 14 : 4)}px;`}
+      >
+        <div class="gantt-header">
+          <div class="gantt-label sticky-label">Tarea / responsable</div>
+          <div class="gantt-axis">
+            {range.ticks.map((tick) => (
+              <span
+                class:list={['gantt-tick', { weekend: tick.weekend }]}
+                style={`left:${(tick.offset / range.days) * 100}%;width:${(tick.width / range.days) * 100}%;`}
+                title={tick.date}
+              >
+                {tick.label}
+              </span>
+            ))}
+          </div>
+        </div>
+        {planned.map((task) => {
+          const bar = taskPlacement(task, range.start, range.days);
+          return (
+            <div class="gantt-row">
+              <a class="gantt-label sticky-label" href={`/tasks/${task.id}`}>
+                <span class="mono">
+                  {project.key}-{task.number}
+                </span>
+                <strong>{task.title}</strong>
+                <small>{task.assignee_name || 'Sin asignar'}</small>
+              </a>
+              <div class="gantt-track">
+                {todayIndex >= 0 && todayIndex < range.days && (
+                  <span
+                    class="gantt-today"
+                    style={`left:${((todayIndex + 0.5) / range.days) * 100}%;`}
+                  ></span>
+                )}
+                {bar ? (
+                  <a
+                    class:list={[
+                      'gantt-bar',
+                      `gantt-${task.status}`,
+                      {
+                        milestone: bar.milestone,
+                        'clipped-start': bar.clippedStart,
+                        'clipped-end': bar.clippedEnd,
+                      },
+                    ]}
+                    href={`/tasks/${task.id}`}
+                    style={`left:${(bar.offset / range.days) * 100}%;width:${(bar.width / range.days) * 100}%;`}
+                    aria-label={`${task.title}: ${task.start_date ? `${task.start_date} a ` : ''}${task.due_date}. ${statuses[task.status as keyof typeof statuses]}`}
+                    title={`${task.title} · ${task.start_date || 'Fecha límite'} → ${task.due_date} · ${statuses[task.status as keyof typeof statuses]}`}
+                  >
+                    <span>{bar.milestone ? '◆' : task.title}</span>
+                  </a>
+                ) : (
+                  <span class="gantt-outside">Fuera del periodo</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  ) : (
+    <div class="empty">
+      <Icon name="calendar" />
+      <h2>Empieza a planificar</h2>
+      <p>
+        Añade fecha de inicio y fecha límite a una tarea para verla en el Gantt.
+      </p>
+    </div>
+  )}
+  {unscheduled.length > 0 && (
+    <div class="gantt-unscheduled">
+      <h2>
+        Sin planificación completa{' '}
+        <span class="count">{unscheduled.length}</span>
+      </h2>
+      <p class="muted">
+        Estas tareas necesitan una fecha límite para aparecer en el calendario.
+      </p>
+      <div class="unscheduled-list">
+        {unscheduled.map((t) => (
+          <a class="button" href={`/tasks/${t.id}`}>
+            <span class="mono">
+              {project.key}-{t.number}
+            </span>
+            {t.title}
+          </a>
+        ))}
+      </div>
+    </div>
+  )}
+</section>

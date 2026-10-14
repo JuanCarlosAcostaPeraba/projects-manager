@@ -1,0 +1,174 @@
+---
+import { statuses, priorities, initials, dateLabel } from '../server/data';
+import { todayDate } from '../server/gantt';
+import Icon from './Icon.astro';
+import DeleteButton from './DeleteButton.astro';
+interface Props {
+  project: any;
+  tasks: any[];
+  writable: boolean;
+}
+const { project, tasks, writable } = Astro.props;
+const today = todayDate();
+---
+
+<div class="board kanban-board" aria-label="Tablero Kanban" data-today={today}>
+  {Object.entries(statuses).map(([status, label]) => (
+    <section
+      class={`column column-${status}`}
+      data-status={status}
+      aria-label={label}
+    >
+      <div class="column-heading">
+        <h2>
+          <span class={`status-dot ${status}`}></span>
+          {label}
+          <span class="column-count" data-column-count>
+            {tasks.filter((t) => t.status === status).length}
+          </span>
+        </h2>
+        {writable && (
+          <button
+            type="button"
+            class="icon-button add-column-task"
+            data-open-dialog="new-task"
+            data-task-status={status}
+            aria-label={`Crear tarea en ${label}`}
+            title={`Crear tarea en ${label}`}
+          >
+            <Icon name="plus" />
+          </button>
+        )}
+      </div>
+      <div class="column-cards">
+        {tasks
+          .filter((t) => t.status === status)
+          .map((t) => (
+            <article
+              class:list={[
+                'task-card',
+                `task-priority-${t.priority}`,
+                { completed: t.status === 'done' },
+              ]}
+              draggable={writable}
+              data-task-id={t.id}
+              data-version={t.version}
+              data-due-date={t.due_date || ''}
+            >
+              <div class="task-card-top">
+                <span class="mono">
+                  {project.key}-{t.number}
+                </span>
+                <div class="card-actions">
+                  <span class={`priority ${t.priority}`}>
+                    {priorities[t.priority as keyof typeof priorities]}
+                  </span>
+                  {writable && (
+                    <>
+                      <span class="drag-handle" title="Arrastrar tarjeta">
+                        <Icon name="grip" />
+                      </span>
+                      <DeleteButton
+                        kind="task"
+                        id={t.id}
+                        title={t.title}
+                        version={t.version}
+                        iconOnly
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+              <a class="task-title" href={`/tasks/${t.id}`} draggable="false">
+                {t.title}
+              </a>
+              {t.description && (
+                <p class="task-excerpt">{t.description.slice(0, 140)}</p>
+              )}
+              <div class="task-footer">
+                <span
+                  class:list={[
+                    'due-date',
+                    {
+                      overdue:
+                        t.due_date && t.due_date < today && t.status !== 'done',
+                    },
+                  ]}
+                >
+                  <Icon name="calendar" />
+                  {t.due_date ? dateLabel(t.due_date) : 'Sin fecha'}
+                </span>
+                <span
+                  class="comment-count"
+                  title={`${t.comment_count} comentarios`}
+                >
+                  <Icon name="message" />
+                  {t.comment_count}
+                </span>
+                {t.assignee_name ? (
+                  <span
+                    class="avatar small"
+                    title={t.assignee_name}
+                    aria-label={`Responsable: ${t.assignee_name}`}
+                  >
+                    {initials(t.assignee_name)}
+                  </span>
+                ) : (
+                  <span class="unassigned" title="Sin asignar">
+                    —
+                  </span>
+                )}
+              </div>
+              {writable && (
+                <form class="status-form" method="post" action="/api/command">
+                  <input type="hidden" name="action" value="task.status" />
+                  <input type="hidden" name="task_id" value={t.id} />
+                  <input type="hidden" name="version" value={t.version} />
+                  <select name="status" aria-label={`Estado de ${t.title}`}>
+                    {Object.entries(statuses).map(([value, text]) => (
+                      <option value={value} selected={value === status}>
+                        {text}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="submit"
+                    title="Guardar estado"
+                    aria-label={`Guardar estado de ${t.title}`}
+                  >
+                    <Icon name="arrow" />
+                  </button>
+                </form>
+              )}
+            </article>
+          ))}
+        <div
+          class="column-empty"
+          data-column-empty
+          hidden={tasks.some((t) => t.status === status)}
+        >
+          <span class="empty-drop">＋</span>
+          <p>{writable ? 'Arrastra una tarea aquí' : 'Sin tareas'}</p>
+        </div>
+      </div>
+      {writable && (
+        <button
+          type="button"
+          class="column-add"
+          data-open-dialog="new-task"
+          data-task-status={status}
+        >
+          <Icon name="plus" /> Añadir tarea
+        </button>
+      )}
+    </section>
+  ))}
+</div>
+<p class="muted board-feedback" id="board-feedback" role="status">
+  {writable
+    ? 'Arrastra tarjetas entre columnas o cambia el estado con su selector.'
+    : ''}
+</p>
+<script>
+  import '../scripts/kanban';
+</script>

@@ -1,0 +1,47 @@
+---
+import Icon from './Icon.astro';
+interface Props {
+  kind: 'area' | 'project' | 'task' | 'comment' | 'user';
+  id: string;
+  title: string;
+  description?: string;
+  version?: number;
+  iconOnly?: boolean;
+}
+const { kind, id, title, description, version, iconOnly = false } = Astro.props;
+const labels = {
+  area: 'área',
+  project: 'proyecto',
+  task: 'tarea',
+  comment: 'comentario',
+  user: 'usuario',
+};
+const verb = kind === 'user' ? 'Desactivar' : 'Eliminar';
+---
+
+<button
+  type="button"
+  class:list={[
+    iconOnly ? 'icon-button delete-icon' : 'button danger',
+    'delete-control',
+  ]}
+  data-delete-action={kind === 'user' ? 'user.deactivate' : `${kind}.delete`}
+  data-entity-field={`${kind}_id`}
+  data-entity-id={id}
+  data-entity-version={version}
+  data-delete-title={`${verb} ${labels[kind]} «${title}»`}
+  data-delete-description={
+    description ||
+    (kind === 'user'
+      ? 'Esta persona dejará de tener acceso y se cerrarán sus sesiones. Su historial se conserva y podrás reactivar la cuenta.'
+      : 'Se moverá a la papelera. Podrás recuperar sus datos e historial.')
+  }
+  data-delete-label={
+    kind === 'user' ? 'Desactivar usuario' : 'Mover a la papelera'
+  }
+  aria-label={`${verb} ${labels[kind]} ${title}`}
+  title={`${verb} ${labels[kind]}`}
+>
+  <Icon name="trash" />
+  {!iconOnly && verb}
+</button>

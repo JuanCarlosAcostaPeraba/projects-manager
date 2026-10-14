@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import DeleteButton from '../components/DeleteButton.astro';
 import { pool, table } from '../server/database';
 if (Astro.locals.user!.role !== 'admin')
   return Astro.redirect('/?error=Acceso%20restringido');
@@ -29,6 +30,7 @@ const users = (
           <th>Correo</th>
           <th>Rol global</th>
           <th>Estado</th>
+          <th>Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -44,8 +46,23 @@ const users = (
               </span>
             </td>
             <td>
-              <span class="live-dot"></span>
+              <span class:list={['live-dot', { inactive: !u.active }]}></span>
               {u.active ? 'Activo' : 'Inactivo'}
+            </td>
+            <td>
+              {u.id === Astro.locals.user!.id ? (
+                <span class="muted">Tu cuenta</span>
+              ) : u.active ? (
+                <DeleteButton kind="user" id={u.id} title={u.name} />
+              ) : (
+                <form action="/api/command" method="post">
+                  <input type="hidden" name="action" value="user.activate" />
+                  <input type="hidden" name="user_id" value={u.id} />
+                  <button class="button" type="submit">
+                    Reactivar
+                  </button>
+                </form>
+              )}
             </td>
           </tr>
         ))}

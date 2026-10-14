@@ -3,6 +3,7 @@ import '@/styles/global.css';
 import { initials } from '../server/data';
 import ThemeSwitcher from '../components/ThemeSwitcher.astro';
 import BrandLogo from '../components/BrandLogo.astro';
+import DeleteDialog from '../components/DeleteDialog.astro';
 import themeScript from '../scripts/theme.js?raw';
 interface Props {
   title?: string;
@@ -11,6 +12,7 @@ interface Props {
 const { title = 'Proyectos', active = 'projects' } = Astro.props;
 const user = Astro.locals.user;
 const error = Astro.url.searchParams.get('error');
+const notice = Astro.url.searchParams.get('notice');
 ---
 
 <!doctype html>
@@ -71,6 +73,12 @@ const error = Astro.url.searchParams.get('error');
               </a>
             )}
             <a
+              class:list={['nav-item', { selected: active === 'trash' }]}
+              href="/trash"
+            >
+              <span aria-hidden="true">♲</span> Papelera
+            </a>
+            <a
               class:list={[
                 'nav-item',
                 'mobile-account',
@@ -116,6 +124,11 @@ const error = Astro.url.searchParams.get('error');
             </div>
           </header>
           <main id="main-content">
+            {notice && (
+              <div class="success" role="status">
+                {notice}
+              </div>
+            )}
             {error && (
               <div class="alert" role="alert">
                 {error}
@@ -138,16 +151,21 @@ const error = Astro.url.searchParams.get('error');
         <slot />
       </main>
     )}
+    {user && <DeleteDialog />}
     <script>
+      import '../scripts/delete-controls';
       document
         .querySelectorAll<HTMLButtonElement>('[data-open-dialog]')
         .forEach((button) =>
           button.addEventListener('click', () => {
-            (
-              document.getElementById(
-                button.dataset.openDialog!,
-              ) as HTMLDialogElement
-            )?.showModal();
+            const dialog = document.getElementById(
+              button.dataset.openDialog!,
+            ) as HTMLDialogElement;
+            if (dialog?.id === 'new-task')
+              dialog.querySelector<HTMLSelectElement>(
+                'select[name=status]',
+              )!.value = button.dataset.taskStatus || 'backlog';
+            dialog?.showModal();
           }),
         );
       document

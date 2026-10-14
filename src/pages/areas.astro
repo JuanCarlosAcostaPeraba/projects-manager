@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import DeleteButton from '../components/DeleteButton.astro';
 import { listAreas, roles } from '../server/data';
 import { pool, table } from '../server/database';
 const user = Astro.locals.user!;
@@ -38,7 +39,17 @@ const memberships = (
       <section class="panel">
         <div class="card-top">
           <span class="project-icon color-1">◫</span>
-          <span class="badge">{roles[a.access as keyof typeof roles]}</span>
+          <div class="action-row">
+            <span class="badge">{roles[a.access as keyof typeof roles]}</span>
+            {user.role === 'admin' && (
+              <DeleteButton
+                kind="area"
+                id={a.id}
+                title={a.name}
+                description={`Se moverán a la papelera esta área, sus ${a.project_count} proyectos y las tareas y comentarios incluidos. Los permisos se conservarán al restaurarla.`}
+              />
+            )}
+          </div>
         </div>
         <h2>{a.name}</h2>
         <p class="muted">

@@ -134,7 +134,7 @@ test('migration is repeatable and preserves data', async () => {
         `SELECT count(*)::int AS count FROM ${table('migrations')}`,
       )
     ).rows[0].count,
-    1,
+    2,
   );
   assert.equal(
     (await pool.query(`SELECT count(*)::int AS count FROM ${table('tasks')}`))

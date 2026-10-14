@@ -1,0 +1,76 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { trashItems } from '../server/lifecycle';
+import { dateLabel } from '../server/data';
+import Icon from '../components/Icon.astro';
+const items = await trashItems(Astro.locals.user!);
+const labels = {
+  area: 'Área',
+  project: 'Proyecto',
+  task: 'Tarea',
+  comment: 'Comentario',
+};
+---
+
+<Layout title="Papelera" active="trash">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">RECUPERAR EL TRABAJO</p>
+      <h1>
+        Papelera <span class="count">{items.length}</span>
+      </h1>
+      <p>
+        Restaura los elementos eliminados de las áreas a las que tienes acceso.
+      </p>
+    </div>
+  </div>
+  <div class="info-note">
+    Al restaurar un área o proyecto se recupera lo que se eliminó con él. Los
+    elementos que ya estaban en la papelera permanecen allí.
+  </div>
+  <div class="table-wrap trash-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Elemento</th>
+          <th>Tipo</th>
+          <th>Ubicación</th>
+          <th>Eliminado</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((item) => (
+          <tr>
+            <td>
+              <strong>{item.title}</strong>
+            </td>
+            <td>{labels[item.kind as keyof typeof labels]}</td>
+            <td>{item.context}</td>
+            <td>{dateLabel(item.deleted_at)}</td>
+            <td>
+              <form action="/api/command" method="post">
+                <input type="hidden" name="action" value="trash.restore" />
+                <input type="hidden" name="id" value={item.id} />
+                <input type="hidden" name="kind" value={item.kind} />
+                <button type="submit" class="button">
+                  <Icon name="restore" />
+                  Restaurar
+                </button>
+              </form>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    {!items.length && (
+      <div class="empty">
+        <h2>La papelera está vacía</h2>
+        <p>Los elementos que elimines aparecerán aquí.</p>
+        <a href="/" class="button">
+          Volver a proyectos
+        </a>
+      </div>
+    )}
+  </div>
+</Layout>

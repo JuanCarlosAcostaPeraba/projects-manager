@@ -1,0 +1,27 @@
+<dialog id="delete-confirmation" aria-labelledby="delete-confirmation-title">
+  <div class="dialog-heading">
+    <h2 id="delete-confirmation-title">Eliminar elemento</h2>
+    <button
+      type="button"
+      class="icon-button"
+      data-close-dialog
+      aria-label="Cerrar"
+    >
+      ✕
+    </button>
+  </div>
+  <p class="muted" id="delete-confirmation-description"></p>
+  <form action="/api/command" method="post" class="form-stack">
+    <input type="hidden" name="action" data-delete-input-action />
+    <input type="hidden" name="id" data-delete-input-id />
+    <input type="hidden" name="version" data-delete-input-version />
+    <div class="action-row">
+      <button type="button" class="button" data-close-dialog>
+        Cancelar
+      </button>
+      <button type="submit" class="button danger" data-delete-submit>
+        Mover a la papelera
+      </button>
+    </div>
+  </form>
+</dialog>

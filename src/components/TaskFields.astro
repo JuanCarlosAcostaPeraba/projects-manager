@@ -63,6 +63,12 @@ const dueDate = task.due_date
       ))}
     </select>
   </label>
+</div>
+<div class="form-row">
+  <label>
+    Fecha de inicio
+    <input type="date" name="start_date" value={task.start_date || ''} />
+  </label>
   <label>
     Fecha límite
     <input type="date" name="due_date" value={dueDate} />

@@ -1,0 +1,40 @@
+---
+interface Props {
+  name:
+    | 'trash'
+    | 'plus'
+    | 'calendar'
+    | 'grip'
+    | 'message'
+    | 'more'
+    | 'arrow'
+    | 'restore'
+    | 'filter';
+  class?: string;
+}
+const { name, class: className = '' } = Astro.props;
+const paths = {
+  trash: 'M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6',
+  plus: 'M12 5v14M5 12h14',
+  calendar: 'M5 5h14v15H5zM8 3v4M16 3v4M5 10h14',
+  grip: 'M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01',
+  message: 'M4 4h16v12H9l-5 4z',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+  arrow: 'M5 12h14M13 6l6 6-6 6',
+  restore: 'M3 10a9 9 0 1 1 2 8M3 4v6h6',
+  filter: 'M4 6h16M7 12h10M10 18h4',
+};
+---
+
+<svg
+  class:list={['ui-icon', className]}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width={name === 'grip' || name === 'more' ? 3 : 1.7}
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+>
+  <path d={paths[name]} />
+</svg>

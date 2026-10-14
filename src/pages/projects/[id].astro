@@ -1,11 +1,14 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import TaskFields from '../../components/TaskFields.astro';
+import KanbanBoard from '../../components/KanbanBoard.astro';
+import GanttView from '../../components/GanttView.astro';
+import DeleteButton from '../../components/DeleteButton.astro';
+import Icon from '../../components/Icon.astro';
 import {
   projectData,
   statuses,
   priorities,
-  initials,
   dateLabel,
 } from '../../server/data';
 import { canWrite, AppError } from '../../server/permissions';
@@ -21,15 +24,33 @@ try {
   throw error;
 }
 const { project, tasks, members } = data;
-const writable = canWrite(project.access);
-const view = Astro.url.searchParams.get('view') === 'list' ? 'list' : 'board';
-const q = (Astro.url.searchParams.get('q') || '').toLowerCase();
+const writable = canWrite(project.access) && !project.archived;
+const view = ['list', 'gantt'].includes(
+  Astro.url.searchParams.get('view') || '',
+)
+  ? Astro.url.searchParams.get('view')!
+  : 'board';
+const query = Astro.url.searchParams.get('q') || '';
 const assignee = Astro.url.searchParams.get('assignee') || '';
+const status = Astro.url.searchParams.get('status') || '';
+const priority = Astro.url.searchParams.get('priority') || '';
 const visible = tasks.filter(
   (t) =>
-    `${project.key}-${t.number} ${t.title}`.toLowerCase().includes(q) &&
-    (!assignee || t.assignee_id === assignee),
+    `${project.key}-${t.number} ${t.title} ${t.description}`
+      .toLowerCase()
+      .includes(query.toLowerCase()) &&
+    (!assignee ||
+      (assignee === 'unassigned'
+        ? !t.assignee_id
+        : t.assignee_id === assignee)) &&
+    (!status || status === t.status) &&
+    (!priority || priority === t.priority),
 );
+function viewLink(value: string) {
+  const params = new URLSearchParams(Astro.url.search);
+  params.set('view', value);
+  return '?' + params.toString();
+}
 ---
 
 <Layout title={project.name}>
@@ -39,146 +60,121 @@ const visible = tasks.filter(
   <div class="page-heading">
     <div>
       <p class="eyebrow">
-        {project.area_name} <span class="separator">/</span> {project.key}
+        {project.area_name}
+        <span class="separator">/</span>
+        {project.key}
       </p>
       <h1>{project.name}</h1>
       <p>
         {project.description ||
-          'Organiza el trabajo, comparte el progreso y sigue avanzando.'}
+          'Organiza el trabajo y comparte el progreso con tu equipo.'}
       </p>
     </div>
-    {writable && (
-      <button class="button primary" data-open-dialog="new-task">
-        ＋ Nueva tarea
-      </button>
-    )}
+    <div class="action-row">
+      {project.access === 'manager' && (
+        <DeleteButton
+          kind="project"
+          id={project.id}
+          title={project.name}
+          description={`Este proyecto, sus ${tasks.length} tareas y sus comentarios se moverán a la papelera. Podrás restaurarlos juntos.`}
+          iconOnly
+        />
+      )}
+      {writable && (
+        <button class="button primary" data-open-dialog="new-task">
+          <Icon name="plus" />
+          Nueva tarea
+        </button>
+      )}
+    </div>
   </div>
   <div class="project-meta">
     <span class="badge">{tasks.length} tareas</span>
-    <span>☑ {tasks.filter((t) => t.status === 'done').length} completadas</span>
+    <span>
+      ☑{' '}
+      <span data-completed-count>
+        {tasks.filter((t) => t.status === 'done').length}
+      </span>{' '}
+      completadas
+    </span>
     {!writable && <span class="badge">Acceso de lectura</span>}
   </div>
   <div class="board-toolbar">
     <div class="tabs">
       <a
         class:list={['tab', { active: view === 'board' }]}
-        href={`?view=board&q=${encodeURIComponent(q)}&assignee=${assignee}`}
+        href={viewLink('board')}
       >
         ▦ Tablero
       </a>
       <a
         class:list={['tab', { active: view === 'list' }]}
-        href={`?view=list&q=${encodeURIComponent(q)}&assignee=${assignee}`}
+        href={viewLink('list')}
       >
         ☰ Lista
       </a>
+      <a
+        class:list={['tab', { active: view === 'gantt' }]}
+        href={viewLink('gantt')}
+      >
+        <Icon name="calendar" />
+        Gantt
+      </a>
     </div>
-    <form class="filters" method="get">
-      <input type="hidden" name="view" value={view} />
-      <input
-        type="search"
-        name="q"
-        value={q}
-        placeholder="Buscar tareas…"
-        aria-label="Buscar tareas"
-      />
-      <select name="assignee" aria-label="Filtrar por responsable">
-        <option value="">Todos los responsables</option>
-        {members.map((m) => (
-          <option value={m.id} selected={m.id === assignee}>
-            {m.name}
-          </option>
-        ))}
-      </select>
-      <button class="button" type="submit">
-        Filtrar
-      </button>
-    </form>
+    <span class="view-result-count">
+      <span data-visible-count>{visible.length}</span> de {tasks.length} tareas
+    </span>
   </div>
-  {view === 'board' ? (
-    <div class="board">
-      {Object.entries(statuses).map(([status, label]) => (
-        <section class={`column column-${status}`} data-status={status}>
-          <div class="column-heading">
-            <h2>
-              <span class={`status-dot ${status}`}></span>
-              {label}
-            </h2>
-            <span class="column-count">
-              {visible.filter((t) => t.status === status).length}
-            </span>
-          </div>
-          <div class="column-cards">
-            {visible
-              .filter((t) => t.status === status)
-              .map((t) => (
-                <article
-                  class="task-card"
-                  draggable={writable}
-                  data-task-id={t.id}
-                  data-version={t.version}
-                >
-                  <div class="task-card-top">
-                    <span class="mono">
-                      {project.key}-{t.number}
-                    </span>
-                    <span class={`priority ${t.priority}`}>
-                      {priorities[t.priority as keyof typeof priorities]}
-                    </span>
-                  </div>
-                  <a class="task-title" href={`/tasks/${t.id}`}>
-                    {t.title}
-                  </a>
-                  <div class="task-footer">
-                    <span class="due-date">
-                      {t.due_date
-                        ? `◷ ${dateLabel(t.due_date)}`
-                        : 'Sin fecha límite'}
-                    </span>
-                    {t.assignee_name ? (
-                      <span class="avatar small" title={t.assignee_name}>
-                        {initials(t.assignee_name)}
-                      </span>
-                    ) : (
-                      <span class="unassigned" title="Sin asignar">
-                        —
-                      </span>
-                    )}
-                  </div>
-                  {writable && (
-                    <form
-                      class="status-form"
-                      method="post"
-                      action="/api/command"
-                    >
-                      <input type="hidden" name="action" value="task.status" />
-                      <input type="hidden" name="task_id" value={t.id} />
-                      <input type="hidden" name="version" value={t.version} />
-                      <select name="status" aria-label={`Estado de ${t.title}`}>
-                        {Object.entries(statuses).map(([value, text]) => (
-                          <option value={value} selected={value === status}>
-                            {text}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="submit"
-                        title="Guardar estado"
-                        aria-label={`Guardar estado de ${t.title}`}
-                      >
-                        →
-                      </button>
-                    </form>
-                  )}
-                </article>
-              ))}
-            {!visible.some((t) => t.status === status) && (
-              <div class="column-empty">Sin tareas por aquí</div>
-            )}
-          </div>
-        </section>
+  <form class="filters project-filters" method="get">
+    <input type="hidden" name="view" value={view} />
+    <input
+      type="search"
+      name="q"
+      value={query}
+      placeholder="Buscar título, clave o descripción…"
+      aria-label="Buscar tareas"
+    />
+    <select name="assignee" aria-label="Filtrar por responsable">
+      <option value="">Todos los responsables</option>
+      <option value="unassigned" selected={assignee === 'unassigned'}>
+        Sin asignar
+      </option>
+      {members.map((m) => (
+        <option value={m.id} selected={m.id === assignee}>
+          {m.name}
+        </option>
       ))}
-    </div>
+    </select>
+    <select name="status" aria-label="Filtrar por estado">
+      <option value="">Todos los estados</option>
+      {Object.entries(statuses).map(([value, label]) => (
+        <option value={value} selected={status === value}>
+          {label}
+        </option>
+      ))}
+    </select>
+    <select name="priority" aria-label="Filtrar por prioridad">
+      <option value="">Todas las prioridades</option>
+      {Object.entries(priorities).map(([value, label]) => (
+        <option value={value} selected={priority === value}>
+          {label}
+        </option>
+      ))}
+    </select>
+    <button type="submit" class="button">
+      <Icon name="filter" />
+      Filtrar
+    </button>
+    {(query || assignee || status || priority) && (
+      <a class="button" href={`?view=${view}`}>
+        Limpiar
+      </a>
+    )}
+  </form>
+  {view === 'board' ? (
+    <KanbanBoard project={project} tasks={visible} writable={writable} />
+  ) : view === 'gantt' ? (
+    <GanttView project={project} tasks={visible} />
   ) : (
     <div class="table-wrap">
       <table>
@@ -188,7 +184,9 @@ const visible = tasks.filter(
             <th>Estado</th>
             <th>Prioridad</th>
             <th>Responsable</th>
+            <th>Inicio</th>
             <th>Fecha límite</th>
+            {writable && <th>Acciones</th>}
           </tr>
         </thead>
         <tbody>
@@ -198,7 +196,7 @@ const visible = tasks.filter(
                 <a href={`/tasks/${t.id}`}>
                   <span class="mono">
                     {project.key}-{t.number}
-                  </span>{' '}
+                  </span>
                   {t.title}
                 </a>
               </td>
@@ -212,103 +210,40 @@ const visible = tasks.filter(
                 </span>
               </td>
               <td>{t.assignee_name || 'Sin asignar'}</td>
+              <td>{dateLabel(t.start_date)}</td>
               <td>{dateLabel(t.due_date)}</td>
+              {writable && (
+                <td>
+                  <DeleteButton
+                    kind="task"
+                    id={t.id}
+                    title={t.title}
+                    version={t.version}
+                    iconOnly
+                  />
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
       </table>
-      {!visible.length && <p class="empty">No hay tareas para mostrar.</p>}
+      {!visible.length && (
+        <p class="empty">No hay tareas que coincidan con estos filtros.</p>
+      )}
     </div>
   )}
-  {!tasks.length && (
-    <p class="muted">
-      Crea la primera tarea para empezar a trabajar en este proyecto.
-    </p>
-  )}
-  <p class="muted" id="board-feedback" role="status">
-    {writable && view === 'board'
-      ? 'Arrastra una tarea a otra columna o cambia su estado desde la tarjeta.'
-      : ''}
-  </p>
-  <script>
-    let dragged: HTMLElement | null = null;
-    let saving = false;
-    const feedback = document.getElementById('board-feedback');
-    document
-      .querySelectorAll<HTMLElement>('.task-card[draggable="true"]')
-      .forEach((card) => {
-        card.addEventListener('dragstart', (event) => {
-          if (saving) {
-            event.preventDefault();
-            return;
-          }
-          dragged = card;
-          event.dataTransfer?.setData('text/plain', card.dataset.taskId!);
-          if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-          card.classList.add('dragging');
-        });
-        card.addEventListener('dragend', () => {
-          card.classList.remove('dragging');
-          document
-            .querySelectorAll('.drop-target')
-            .forEach((column) => column.classList.remove('drop-target'));
-          dragged = null;
-        });
-      });
-    document.querySelectorAll<HTMLElement>('.column').forEach((column) => {
-      column.addEventListener('dragover', (event) => {
-        if (!dragged || saving) return;
-        event.preventDefault();
-        column.classList.add('drop-target');
-      });
-      column.addEventListener('dragleave', (event) => {
-        if (!column.contains(event.relatedTarget as Node))
-          column.classList.remove('drop-target');
-      });
-      column.addEventListener('drop', async (event) => {
-        event.preventDefault();
-        column.classList.remove('drop-target');
-        const card = dragged;
-        if (!card || saving || card.closest('.column') === column) return;
-        saving = true;
-        if (feedback) feedback.textContent = 'Guardando el nuevo estado…';
-        try {
-          const response = await fetch('/api/command', {
-            method: 'POST',
-            headers: { accept: 'application/json' },
-            body: new URLSearchParams({
-              action: 'task.status',
-              task_id: card.dataset.taskId!,
-              version: card.dataset.version!,
-              status: column.dataset.status!,
-            }),
-          });
-          if (
-            !response.headers.get('content-type')?.includes('application/json')
-          )
-            throw new Error('Tu sesión ha caducado. Vuelve a iniciar sesión.');
-          const result = await response.json();
-          if (!response.ok)
-            throw new Error(result.error || 'No se pudo cambiar el estado.');
-          window.location.reload();
-        } catch (error) {
-          if (feedback)
-            feedback.textContent =
-              error instanceof Error
-                ? error.message
-                : 'No se pudo guardar el estado.';
-          saving = false;
-        }
-      });
-    });
-  </script>
   {writable && (
     <dialog id="new-task">
       <div class="dialog-heading">
         <h2>
           Nueva tarea <span class="mono">{project.key}</span>
         </h2>
-        <button class="icon-button" data-close-dialog aria-label="Cerrar">
+        <button
+          type="button"
+          class="icon-button"
+          data-close-dialog
+          aria-label="Cerrar"
+        >
           ✕
         </button>
       </div>
@@ -316,7 +251,7 @@ const visible = tasks.filter(
         <input type="hidden" name="action" value="task.create" />
         <input type="hidden" name="project_id" value={project.id} />
         <TaskFields members={members} />
-        <button class="button primary" type="submit">
+        <button type="submit" class="button primary">
           Crear tarea
         </button>
       </form>

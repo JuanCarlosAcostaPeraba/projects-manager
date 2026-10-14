@@ -37,6 +37,11 @@ export async function requireArea(
   mode: 'read' | 'write' | 'manage',
   db: Pick<PoolClient, 'query'> = pool,
 ) {
+  const area = await db.query(
+    `SELECT id FROM ${table('areas')} WHERE id=$1 AND deleted_at IS NULL ${mode === 'read' ? '' : 'FOR SHARE'}`,
+    [areaId],
+  );
+  if (!area.rowCount) throw new AppError('Área no encontrada.', 404);
   const role = await areaRole(user, areaId, db);
   if (
     !role ||
@@ -52,13 +57,18 @@ export async function requireProject(
   mode: 'read' | 'write' | 'manage',
   db: Pick<PoolClient, 'query'> = pool,
 ) {
+  const reference = await db.query(
+    `SELECT area_id FROM ${table('projects')} WHERE id=$1`,
+    [projectId],
+  );
+  if (!reference.rowCount) throw new AppError('Proyecto no encontrado.', 404);
+  const role = await requireArea(user, reference.rows[0].area_id, mode, db);
   const result = await db.query(
-    `SELECT p.*,a.name AS area_name FROM ${table('projects')} p JOIN ${table('areas')} a ON a.id=p.area_id WHERE p.id=$1`,
+    `SELECT p.*,a.name AS area_name FROM ${table('projects')} p JOIN ${table('areas')} a ON a.id=p.area_id WHERE p.id=$1 AND p.deleted_at IS NULL ${mode === 'read' ? '' : 'FOR UPDATE OF p'}`,
     [projectId],
   );
   const project = result.rows[0];
   if (!project) throw new AppError('Proyecto no encontrado.', 404);
-  const role = await requireArea(user, project.area_id, mode, db);
   if (mode !== 'read' && project.archived)
     throw new AppError('El proyecto está archivado.');
   return { ...project, access: role };
@@ -69,11 +79,22 @@ export async function requireTask(
   mode: 'read' | 'write',
   db: Pick<PoolClient, 'query'> = pool,
 ) {
-  const result = await db.query(`SELECT * FROM ${table('tasks')} WHERE id=$1`, [
-    taskId,
-  ]);
+  const reference = await db.query(
+    `SELECT project_id FROM ${table('tasks')} WHERE id=$1`,
+    [taskId],
+  );
+  if (!reference.rowCount) throw new AppError('Tarea no encontrada.', 404);
+  const project = await requireProject(
+    user,
+    reference.rows[0].project_id,
+    mode,
+    db,
+  );
+  const result = await db.query(
+    `SELECT * FROM ${table('tasks')} WHERE id=$1 AND deleted_at IS NULL ${mode === 'read' ? '' : 'FOR UPDATE'}`,
+    [taskId],
+  );
   if (!result.rows[0]) throw new AppError('Tarea no encontrada.', 404);
   const task = result.rows[0];
-  const project = await requireProject(user, task.project_id, mode, db);
   return { task, project };
 }

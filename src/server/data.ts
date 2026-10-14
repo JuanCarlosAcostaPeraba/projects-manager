@@ -38,10 +38,10 @@ export function dateLabel(date: Date | string | null) {
 export async function listAreas(user: User) {
   const result = await pool.query(
     `SELECT a.*, CASE WHEN $2 THEN 'manager' ELSE m.role END AS access,
-    (SELECT count(*)::int FROM ${table('projects')} p WHERE p.area_id=a.id AND NOT p.archived) AS project_count,
+    (SELECT count(*)::int FROM ${table('projects')} p WHERE p.area_id=a.id AND NOT p.archived AND p.deleted_at IS NULL) AS project_count,
     (SELECT count(*)::int FROM ${table('area_members')} am WHERE am.area_id=a.id) AS member_count
     FROM ${table('areas')} a LEFT JOIN ${table('area_members')} m ON m.area_id=a.id AND m.user_id=$1
-    WHERE $2 OR m.user_id IS NOT NULL ORDER BY a.name`,
+    WHERE a.deleted_at IS NULL AND ($2 OR m.user_id IS NOT NULL) ORDER BY a.name`,
     [user.id, user.role === 'admin'],
   );
   return result.rows;
@@ -53,8 +53,8 @@ export async function listProjects(user: User) {
     CASE WHEN $2 THEN 'manager' ELSE m.role END AS access
     FROM ${table('projects')} p JOIN ${table('areas')} a ON a.id=p.area_id
     LEFT JOIN ${table('area_members')} m ON m.area_id=a.id AND m.user_id=$1
-    LEFT JOIN ${table('tasks')} t ON t.project_id=p.id
-    WHERE NOT p.archived AND ($2 OR m.user_id IS NOT NULL)
+    LEFT JOIN ${table('tasks')} t ON t.project_id=p.id AND t.deleted_at IS NULL
+    WHERE NOT p.archived AND p.deleted_at IS NULL AND a.deleted_at IS NULL AND ($2 OR m.user_id IS NOT NULL)
     GROUP BY p.id,a.name,m.role ORDER BY p.created_at DESC`,
     [user.id, user.role === 'admin'],
   );
@@ -72,7 +72,7 @@ export async function projectData(user: User, projectId: string) {
   const project = await requireProject(user, projectId, 'read');
   const tasks = (
     await pool.query(
-      `SELECT t.*,u.name AS assignee_name FROM ${table('tasks')} t LEFT JOIN ${table('users')} u ON u.id=t.assignee_id WHERE t.project_id=$1 ORDER BY t.number`,
+      `SELECT t.*,u.name AS assignee_name,(SELECT count(*)::int FROM ${table('comments')} c WHERE c.task_id=t.id AND c.deleted_at IS NULL) AS comment_count FROM ${table('tasks')} t LEFT JOIN ${table('users')} u ON u.id=t.assignee_id WHERE t.project_id=$1 AND t.deleted_at IS NULL ORDER BY t.number`,
       [projectId],
     )
   ).rows;
@@ -83,7 +83,7 @@ export async function taskData(user: User, taskId: string) {
   const { task, project } = await requireTask(user, taskId, 'read');
   const comments = (
     await pool.query(
-      `SELECT c.*,u.name AS author_name FROM ${table('comments')} c JOIN ${table('users')} u ON u.id=c.author_id WHERE c.task_id=$1 ORDER BY c.created_at`,
+      `SELECT c.*,u.name AS author_name FROM ${table('comments')} c JOIN ${table('users')} u ON u.id=c.author_id WHERE c.task_id=$1 AND c.deleted_at IS NULL ORDER BY c.created_at`,
       [taskId],
     )
   ).rows;
@@ -104,8 +104,8 @@ export async function taskData(user: User, taskId: string) {
 export async function myTasks(user: User) {
   return (
     await pool.query(
-      `SELECT t.*,p.key,p.name AS project_name FROM ${table('tasks')} t JOIN ${table('projects')} p ON p.id=t.project_id
-    WHERE t.assignee_id=$1 AND NOT p.archived AND ($2 OR EXISTS(SELECT 1 FROM ${table('area_members')} m WHERE m.area_id=p.area_id AND m.user_id=$1))
+      `SELECT t.*,p.key,p.name AS project_name FROM ${table('tasks')} t JOIN ${table('projects')} p ON p.id=t.project_id JOIN ${table('areas')} a ON a.id=p.area_id
+    WHERE t.assignee_id=$1 AND t.deleted_at IS NULL AND p.deleted_at IS NULL AND a.deleted_at IS NULL AND NOT p.archived AND ($2 OR EXISTS(SELECT 1 FROM ${table('area_members')} m WHERE m.area_id=p.area_id AND m.user_id=$1))
     ORDER BY (t.status='done'),t.due_date NULLS LAST,t.updated_at DESC`,
       [user.id, user.role === 'admin'],
     )

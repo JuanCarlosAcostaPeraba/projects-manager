@@ -5,9 +5,11 @@
 - Cuentas locales: administrador inicial, alta de usuarios, inicio y cierre de sesión y cambio de contraseña.
 - Áreas con responsables, miembros y lectores. Un usuario puede pertenecer a varias áreas con distintos permisos.
 - Creación de proyectos con una clave única para numerar sus tareas.
-- Tablero Kanban y lista; búsqueda y filtro por responsable.
-- Creación y edición de tareas con descripción, estado, prioridad, responsable y fecha límite.
-- Cambios de estado mediante un selector; arrastre de tarjetas como mejora de la interfaz.
+- Tablero Kanban, lista y diagrama de Gantt; búsqueda por título, clave o descripción y filtros por responsable, estado y prioridad.
+- Creación y edición de tareas con descripción, estado, prioridad, responsable, fecha de inicio y fecha límite.
+- Kanban con tarjetas de prioridad, vencimientos y comentarios; creación desde cada columna y cambios de estado con arrastre o selector, guardados sin recargar.
+- Papelera recuperable para tareas, comentarios, proyectos y áreas, con confirmación y restauración respetando los permisos del área.
+- Desactivación y reactivación de cuentas, conservando el historial y cerrando sus sesiones al desactivarlas.
 - Mis tareas, comentarios e historial de cambios de las tareas.
 - Tema claro, oscuro y sistema mediante Tailwind. El selector está en la cabecera y en las pantallas de acceso; la preferencia se guarda por navegador y se sincroniza entre pestañas. Sistema sigue los cambios de apariencia del dispositivo.
 - PostgreSQL real, migraciones transaccionales con verificación de integridad y bloqueo para evitar ejecuciones simultáneas.
@@ -21,12 +23,25 @@ Los seis ejemplos solo se crean si se marca la casilla correspondiente al config
 | Consultar proyectos y tareas del área | Sí     | Sí      | Sí          | Todas las áreas |
 | Crear y editar tareas; comentar       | No     | Sí      | Sí          | Sí              |
 | Crear proyectos en el área            | No     | No      | Sí          | Sí              |
+| Eliminar y restaurar tareas           | No     | Sí      | Sí          | Sí              |
+| Eliminar y restaurar comentarios      | No     | Propios | Sí          | Sí              |
+| Eliminar y restaurar proyectos        | No     | No      | Sí          | Sí              |
 | Asignar o retirar permisos del área   | No     | No      | Sí          | Sí              |
 | Crear áreas y cuentas                 | No     | No      | No          | Sí              |
+| Eliminar y restaurar áreas            | No     | No      | No          | Sí              |
+| Desactivar y reactivar cuentas        | No     | No      | No          | Sí              |
 
 Los permisos se heredan del área. Todavía no hay proyectos privados dentro de un área ni permisos individuales por tarea. Retirar la pertenencia al área impide inmediatamente consultar sus proyectos y tareas, aunque alguna tarea conserve el usuario como responsable histórico. Los responsables de área pueden seleccionar personas activas por nombre para conceder acceso; el correo y la administración de cuentas están reservados al administrador.
 
 Las comprobaciones se ejecutan en el servidor, también al solicitar una tarea directamente por su ID. Las sesiones usan un token aleatorio cuya huella se almacena en PostgreSQL. Las contraseñas usan scrypt; el acceso tiene un límite de intentos. El cambio de contraseña invalida todas las sesiones de esa cuenta. Las ediciones de tareas incluyen una versión para detectar cambios simultáneos.
+
+## Papelera y planificación
+
+Eliminar oculta el elemento de las vistas, búsquedas, recuentos y accesos directos. Un proyecto arrastra sus tareas y comentarios; un área arrastra sus proyectos. La restauración recupera únicamente los elementos eliminados juntos: los que ya estaban en la papelera permanecen allí. Primero se restaura el contenedor eliminado y después se pueden recuperar sus elementos independientes. Se conservan asignaciones, permisos, numeración e historial. Los nombres de áreas y claves de proyectos eliminados siguen reservados para permitir una restauración sin conflictos. No hay vaciado definitivo de la papelera en este MVP.
+
+Las cuentas se desactivan desde Administración y se pueden reactivar allí. No se permite desactivar la cuenta propia ni dejar el espacio sin administradores activos.
+
+El Gantt usa fechas de calendario y ofrece escalas de días, semanas y meses, navegación por periodos y referencia de hoy en la zona Atlantic/Canary. Las tareas con inicio y límite aparecen como barras, las que solo tienen límite como hitos, y las que no tienen límite se listan como pendientes de planificación. El inicio no puede ser posterior al límite. Los enlaces abren el detalle para editar las fechas; todavía no hay dependencias ni edición mediante arrastre en el Gantt.
 
 ## Estructura
 
@@ -34,7 +49,8 @@ Las comprobaciones se ejecutan en el servidor, también al solicitar una tarea d
 - `src/server`: conexión, autenticación, consultas, permisos y operaciones de escritura.
 - `db/migrations`: SQL versionado; no editar migraciones ya aplicadas, añadir una nueva.
 - `scripts/migrate.ts`: aplicación de migraciones.
-- `tests/integration.test.ts`: pruebas con PostgreSQL en un esquema temporal exclusivo para cada ejecución, eliminado al finalizar.
+- `tests/integration.test.ts` y `tests/lifecycle.test.ts`: pruebas con PostgreSQL en esquemas temporales exclusivos, eliminados al finalizar.
+- `tests/planning.test.ts`: cálculo de fechas, barras e hitos del Gantt.
 
 Todas las tablas se califican con el esquema configurado. El código no usa `search_path` ni requiere extensiones, superusuario o cambios en otros esquemas.
 
@@ -65,8 +81,10 @@ El volcado contiene hashes de contraseñas y datos del equipo; guardarlo fuera d
 
 ## Próximas iteraciones
 
-Edición y archivo de proyectos, desactivación de usuarios y recuperación de contraseña; invitaciones o SSO; etiquetas, adjuntos, subtareas, vistas guardadas, notificaciones y auditoría de permisos. Los estados son fijos en este MVP: Backlog, Por hacer, En curso, En revisión y Hecho.
+Edición y archivo de proyectos, recuperación de contraseña; invitaciones o SSO; etiquetas, adjuntos, subtareas, dependencias del Gantt, vistas guardadas, notificaciones y auditoría de permisos. Los estados son fijos en este MVP: Backlog, Por hacer, En curso, En revisión y Hecho.
 
 ## Validación realizada
 
-Once pruebas de integración cubren migraciones repetibles, contraseñas, límites de áreas, roles, numeración concurrente, conflictos de edición, comentarios, revocación de permisos, sesiones, limitación de intentos y protección de origen. La revisión en navegador se hizo sobre el servidor compilado y un esquema temporal: acceso, creación, edición, asignación y comentarios, más la distribución móvil. El arrastre se implementó, pero no se pudo confirmar con la automatización de navegador; el selector de estado funciona y ofrece una alternativa accesible.
+Veintitrés pruebas cubren migraciones repetibles, contraseñas, límites de áreas, roles, numeración concurrente, conflictos de edición, comentarios, revocación de permisos, sesiones, limitación de intentos y protección de origen; además, borrado y restauración en cascada, elementos previamente eliminados, creación simultánea con eliminación, desactivación de cuentas y cálculo del Gantt con cambios de hora y años bisiestos. `pnpm check` y `pnpm build` completados sin errores.
+
+La revisión en navegador se hizo sobre el servidor compilado y un esquema temporal: creación con fechas, arrastre y selector del Kanban con persistencia y contadores, filtros, cancelación de borrado, eliminación y restauración de tareas, comentarios, proyectos y áreas, escalas y navegación del Gantt, temas claro y oscuro y distribución móvil.
