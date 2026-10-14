@@ -1,6 +1,8 @@
 ---
 import '@/styles/global.css';
 import { initials } from '../server/data';
+import ThemeSwitcher from '../components/ThemeSwitcher.astro';
+import themeScript from '../scripts/theme.js?raw';
 interface Props {
   title?: string;
   active?: string;
@@ -15,6 +17,7 @@ const error = Astro.url.searchParams.get('error');
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script is:inline set:html={themeScript} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta
       name="description"
@@ -102,11 +105,14 @@ const error = Astro.url.searchParams.get('error');
         </aside>
         <div class="main-shell">
           <header class="topbar">
-            <span>
+            <span class="min-w-0 truncate">
               Espacio de trabajo <span class="separator">/</span>{' '}
               <strong>{title}</strong>
             </span>
-            <span class="topbar-note">Un lugar para avanzar juntos</span>
+            <div class="flex shrink-0 items-center gap-4">
+              <span class="topbar-note">Un lugar para avanzar juntos</span>
+              <ThemeSwitcher />
+            </div>
           </header>
           <main id="main-content">
             {error && (
@@ -120,6 +126,9 @@ const error = Astro.url.searchParams.get('error');
       </div>
     ) : (
       <main class="auth-shell">
+        <div class="absolute right-4 top-4 sm:right-6 sm:top-6">
+          <ThemeSwitcher />
+        </div>
         {error && (
           <div class="alert" role="alert">
             {error}

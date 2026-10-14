@@ -9,6 +9,7 @@
 - Creación y edición de tareas con descripción, estado, prioridad, responsable y fecha límite.
 - Cambios de estado mediante un selector; arrastre de tarjetas como mejora de la interfaz.
 - Mis tareas, comentarios e historial de cambios de las tareas.
+- Tema claro, oscuro y sistema mediante Tailwind. El selector está en la cabecera y en las pantallas de acceso; la preferencia se guarda por navegador y se sincroniza entre pestañas. Sistema sigue los cambios de apariencia del dispositivo.
 - PostgreSQL real, migraciones transaccionales con verificación de integridad y bloqueo para evitar ejecuciones simultáneas.
 
 Los seis ejemplos solo se crean si se marca la casilla correspondiente al configurar el primer administrador. No hay contraseñas predefinidas ni registro público una vez configurado el espacio.

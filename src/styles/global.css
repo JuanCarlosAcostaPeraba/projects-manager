@@ -1,13 +1,19 @@
 @import 'tailwindcss';
+@custom-variant dark (&:where(.dark, .dark *));
 @theme {
   --font-sans: 'Segoe UI', Inter, system-ui, sans-serif;
 }
 :root {
+  color-scheme: light;
   font-family: var(--font-sans);
   color: #263346;
   background: #f7f9fc;
   font-size: 14px;
   font-synthesis: none;
+  @variant dark {
+    @apply bg-slate-950 text-slate-100;
+    color-scheme: dark;
+  }
 }
 * {
   box-sizing: border-box;
@@ -1042,6 +1048,205 @@ td .mono {
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
+}
+/* The same Tailwind dark variant drives utilities and the existing MVP styles. */
+@variant dark {
+  .sidebar,
+  .topbar,
+  .project-card,
+  .stats,
+  .auth-card,
+  .panel,
+  .table-wrap,
+  .task-card,
+  dialog {
+    @apply bg-slate-900 border-slate-700/70;
+  }
+  .auth-shell {
+    background: radial-gradient(
+      ellipse at top,
+      var(--color-slate-900),
+      var(--color-slate-950) 70%
+    );
+  }
+  .brand,
+  dialog,
+  .topbar strong,
+  .empty h2,
+  td:first-child,
+  .task-title {
+    @apply text-slate-100;
+  }
+  small,
+  .brand-sub,
+  .nav-label,
+  .workspace small,
+  .environment,
+  .logout,
+  .topbar,
+  .page-heading p:not(.eyebrow),
+  .eyebrow,
+  .stats span,
+  .stats small,
+  .card-description,
+  .progress-label,
+  .progress-label strong,
+  .card-footer,
+  .mono,
+  .empty,
+  .auth-card > p:not(.eyebrow),
+  .icon-button,
+  .back-link,
+  .project-meta,
+  .tab,
+  .column-count,
+  .task-footer,
+  .status-form select,
+  .column-empty,
+  th,
+  td,
+  .activity-entry p,
+  .detail-note,
+  .comment p,
+  .muted,
+  .member-row,
+  .read-details {
+    @apply text-slate-400;
+  }
+  .form-stack > label,
+  .form-row > label,
+  .nav-item {
+    @apply text-slate-300;
+  }
+  .separator {
+    @apply text-slate-600;
+  }
+  .workspace,
+  .environment,
+  .badge,
+  .stats > div,
+  .card-footer,
+  .board-toolbar,
+  .unassigned,
+  .status-form,
+  th,
+  td,
+  .detail-note,
+  .member-row,
+  .membership-editor {
+    @apply border-slate-700/70;
+  }
+  .badge {
+    @apply text-slate-300;
+  }
+  .workspace-icon,
+  .count,
+  .column,
+  th,
+  .status-form button {
+    @apply bg-slate-800 text-slate-300;
+  }
+  .column,
+  .status-form button {
+    @apply border-slate-700/70;
+  }
+  .nav-item:hover {
+    @apply bg-slate-800 text-slate-100;
+  }
+  .nav-item.selected {
+    @apply bg-indigo-500/15 text-indigo-300;
+  }
+  .button {
+    @apply bg-slate-800 border-slate-700 text-slate-200;
+  }
+  .button:hover {
+    @apply bg-slate-700 text-white;
+  }
+  .button.primary {
+    @apply bg-indigo-500 border-indigo-500 text-white;
+  }
+  .button.primary:hover {
+    @apply bg-indigo-400 border-indigo-400;
+  }
+  .project-card:hover {
+    @apply border-indigo-400/60;
+  }
+  .form-stack input:not([type='hidden']):not([type='checkbox']),
+  .form-stack select,
+  .form-stack textarea,
+  .filters input,
+  .filters select,
+  .search {
+    @apply bg-slate-950 border-slate-700 text-slate-200;
+  }
+  .search input {
+    @apply text-slate-200;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    @apply text-slate-500;
+  }
+  .form-stack input:focus,
+  .form-stack textarea:focus,
+  .form-stack select:focus {
+    @apply border-indigo-400;
+    outline-color: var(--color-indigo-900);
+  }
+  .avatar {
+    @apply bg-indigo-500/20 border-slate-900 text-indigo-200;
+  }
+  .color-0 {
+    @apply bg-indigo-500/15 text-indigo-300;
+  }
+  .color-1 {
+    @apply bg-emerald-500/15 text-emerald-300;
+  }
+  .color-2 {
+    @apply bg-orange-500/15 text-orange-300;
+  }
+  .color-3 {
+    @apply bg-violet-500/15 text-violet-300;
+  }
+  .priority {
+    @apply bg-slate-700 text-slate-300;
+  }
+  .priority.high {
+    @apply bg-amber-500/15 text-amber-300;
+  }
+  .priority.urgent {
+    @apply bg-rose-500/15 text-rose-300;
+  }
+  .priority.low {
+    @apply bg-emerald-500/15 text-emerald-300;
+  }
+  .alert {
+    @apply bg-rose-950/60 border-rose-900 text-rose-200;
+  }
+  .success {
+    @apply bg-emerald-950/60 text-emerald-200;
+  }
+  .info-note {
+    @apply bg-indigo-500/10 border-indigo-500/20 text-slate-300;
+  }
+  .info-note a,
+  .membership-editor,
+  .tab.active,
+  a:hover {
+    @apply text-indigo-300;
+  }
+  .tab.active {
+    @apply border-indigo-400;
+  }
+  .column.drop-target {
+    @apply bg-indigo-500/15 border-indigo-400;
+  }
+  progress::-webkit-progress-bar {
+    @apply bg-slate-700;
+  }
+  progress::-webkit-progress-value,
+  progress::-moz-progress-bar {
+    @apply bg-indigo-400;
+  }
 }
 @media (min-width: 1500px) {
   .board {
