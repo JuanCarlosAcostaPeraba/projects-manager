@@ -2,6 +2,7 @@
 import '@/styles/global.css';
 import { initials } from '../server/data';
 import ThemeSwitcher from '../components/ThemeSwitcher.astro';
+import BrandLogo from '../components/BrandLogo.astro';
 import themeScript from '../scripts/theme.js?raw';
 interface Props {
   title?: string;
@@ -30,7 +31,7 @@ const error = Astro.url.searchParams.get('error');
       <div class="app-shell">
         <aside class="sidebar">
           <a class="brand" href="/">
-            <span class="brand-mark">▥</span>
+            <BrandLogo />
             <span>
               Projects<span class="brand-sub">MANAGER</span>
             </span>

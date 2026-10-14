@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import BrandLogo from '../components/BrandLogo.astro';
 import { pool, table } from '../server/database';
 if ((await pool.query(`SELECT 1 FROM ${table('users')} LIMIT 1`)).rowCount)
   return Astro.redirect('/login');
@@ -8,7 +9,8 @@ if ((await pool.query(`SELECT 1 FROM ${table('users')} LIMIT 1`)).rowCount)
 <Layout title="Preparar el espacio">
   <div class="auth-card">
     <div class="brand">
-      <span class="brand-mark">▥</span>Projects Manager
+      <BrandLogo />
+      Projects Manager
     </div>
     <p class="eyebrow">EL PRIMER PASO</p>
     <h1>Tu equipo empieza aquí.</h1>

@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import BrandLogo from '../components/BrandLogo.astro';
 import { pool, table } from '../server/database';
 if (Astro.locals.user) return Astro.redirect('/');
 if (!(await pool.query(`SELECT 1 FROM ${table('users')} LIMIT 1`)).rowCount)
@@ -9,7 +10,8 @@ if (!(await pool.query(`SELECT 1 FROM ${table('users')} LIMIT 1`)).rowCount)
 <Layout title="Iniciar sesión">
   <div class="auth-card">
     <a class="brand" href="/">
-      <span class="brand-mark">▥</span>Projects Manager
+      <BrandLogo />
+      Projects Manager
     </a>
     <p class="eyebrow">BIENVENIDO A TU ESPACIO</p>
     <h1>Vamos a avanzar.</h1>
