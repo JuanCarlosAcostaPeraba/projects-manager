@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.1",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "dev": "astro dev",
@@ -16,20 +16,20 @@
     "start": "node --env-file=.env dist/server/entry.mjs"
   },
   "dependencies": {
-    "@astrojs/node": "^11.1.7",
+    "@astrojs/node": "11.1.7",
     "@tailwindcss/vite": "4.3.3",
     "astro": "7.3.8",
-    "pg": "^8.23.1",
+    "pg": "8.23.1",
     "tailwindcss": "4.3.3",
-    "zod": "^4.6.7"
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.10",
-    "@types/node": "^26.6.5",
-    "@types/pg": "^8.23.1",
-    "prettier": "^3.9.10",
-    "prettier-plugin-astro": "^1.1.1",
-    "tsx": "^4.23.15",
-    "typescript": "^6.0.3"
+    "@astrojs/check": "0.9.10",
+    "@types/node": "26.6.5",
+    "@types/pg": "8.23.1",
+    "prettier": "3.9.10",
+    "prettier-plugin-astro": "1.1.1",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
   }
 }
